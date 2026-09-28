@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SoundBat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0a0814; --a:#8b5cff; --b:#00e5ff; --hot:#ff3d7f; --dim:#7d73b3; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); font-family:'Chakra Petch', system-ui, sans-serif; color:#ece9ff; user-select:none; -webkit-app-region:drag; }
+  .stage { position:relative; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+
+  /* faint perspective grid floor */
+  .grid { position:absolute; left:-50%; right:-50%; bottom:-40%; height:80%; opacity:0;
+          background-image:linear-gradient(rgba(139,92,255,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,255,.35) 1px, transparent 1px);
+          background-size:40px 40px; transform:perspective(300px) rotateX(62deg); animation:gridIn 1.4s .2s ease-out forwards, gridMove 1.2s linear infinite; }
+  .grid::after { content:''; position:absolute; inset:0; background:linear-gradient(var(--bg), transparent 70%); }
+  @keyframes gridIn { to { opacity:.55; } }
+  @keyframes gridMove { to { background-position:0 40px; } }
+
+  /* echolocation rings */
+  .rings { position:absolute; top:34%; left:50%; width:0; height:0; }
+  .ring { position:absolute; left:-40px; top:-40px; width:80px; height:80px; border-radius:50%; border:2px solid var(--b); opacity:0; box-shadow:0 0 12px var(--b); }
+  .ring.go { animation:ring 1.6s ease-out forwards; }
+  @keyframes ring { 0% { opacity:.9; transform:scale(.3); } 100% { opacity:0; transform:scale(5); } }
+
+  /* the bat */
+  .batWrap { position:relative; z-index:2; margin-top:-18px; opacity:0; transform:translateY(24px) scale(.6); filter:blur(6px);
+             animation:batIn .9s .5s cubic-bezier(.2,.9,.3,1.3) forwards; }
+  @keyframes batIn { to { opacity:1; transform:none; filter:none; } }
+  .bat { display:block; animation:hover 1.6s ease-in-out infinite; filter:drop-shadow(0 0 14px var(--a)); }
+  @keyframes hover { 0%,100% { transform:translateY(-4px); } 50% { transform:translateY(4px); } }
+  .wing { transform-box:view-box; transform-origin:108px 50px; animation:flap .42s ease-in-out infinite; }
+  @keyframes flap { 0%,100% { transform:rotate(-20deg) scaleY(.9); } 50% { transform:rotate(14deg) scaleY(1.05); } }
+  .eye { fill:var(--bg); }
+  .arc { fill:none; stroke:var(--b); stroke-width:2; stroke-linecap:round; opacity:0; transform-box:view-box; transform-origin:100px 58px; filter:drop-shadow(0 0 4px var(--b)); }
+  .lit .arc { animation:arc 1.8s ease-out infinite; }
+  .lit .arc.a2 { animation-delay:.6s; } .lit .arc.a3 { animation-delay:1.2s; }
+  @keyframes arc { 0% { opacity:0; transform:scale(.7); } 30% { opacity:1; } 100% { opacity:0; transform:scale(1.15); } }
+  .lit .eye { fill:var(--b); filter:drop-shadow(0 0 3px var(--b)); }
+
+  /* wordmark: letters flicker on like a neon sign */
+  .word { z-index:2; margin-top:10px; font-size:46px; font-weight:700; letter-spacing:.14em; line-height:1; display:flex; }
+  .word span { opacity:0; }
+  .word span.on { animation:flick .45s steps(1) forwards; }
+  .word .s { color:#fff; text-shadow:0 0 10px rgba(255,255,255,.5); }
+  .word .b { color:var(--a); text-shadow:0 0 16px var(--a), 0 0 32px var(--a); }
+  @keyframes flick { 0% { opacity:1; } 15% { opacity:.1; } 30% { opacity:1; } 45% { opacity:.3; } 60%,100% { opacity:1; } }
+  .tag { z-index:2; margin-top:8px; font-size:11px; font-weight:600; letter-spacing:.42em; color:var(--dim); opacity:0; transition:opacity .5s; }
+  .tag.on { opacity:1; }
+
+  /* loader */
+  .loader { z-index:2; position:absolute; bottom:34px; width:240px; display:flex; flex-direction:column; gap:8px; align-items:center; opacity:0; transition:opacity .4s; }
+  .loader.on { opacity:1; }
+  .bar { width:100%; height:3px; background:#1d1640; overflow:hidden; }
+  .fill { height:100%; width:0; background:linear-gradient(90deg, var(--a), var(--b)); box-shadow:0 0 10px var(--b); transition:width .5s ease; }
+  .status { font-size:11px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; }
+
+  /* finale */
+  .flash { position:absolute; inset:0; z-index:5; background:radial-gradient(circle at 50% 38%, #fff, var(--a) 40%, transparent 75%); opacity:0; pointer-events:none; }
+  body.finale .flash { animation:flash .6s ease-out forwards; }
+  @keyframes flash { 0% { opacity:0; } 35% { opacity:1; } 100% { opacity:0; } }
+  body.finale .batWrap { animation:swoop .5s cubic-bezier(.6,0,.9,.4) forwards; }
+  @keyframes swoop { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(-30px) scale(4); filter:blur(4px); } }
+  body.finale .word, body.finale .tag, body.finale .loader { transition:opacity .25s; opacity:0; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="grid"></div>
+  <div class="rings" id="rings"></div>
+  <div class="batWrap">
+    <svg class="bat" id="bat" width="300" height="180" viewBox="0 0 200 120" aria-label="SoundBat">
+      <path class="arc a1" d="M60 36 Q48 58 60 80 M140 36 Q152 58 140 80"/>
+      <path class="arc a2" d="M46 28 Q30 58 46 88 M154 28 Q170 58 154 88"/>
+      <path class="arc a3" d="M32 20 Q12 58 32 96 M168 20 Q188 58 168 96"/>
+      <g fill="#8b5cff">
+        <path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/>
+        <g transform="translate(200 0) scale(-1 1)"><path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/></g>
+        <path d="M90 43 L94 27 L100 39 L106 27 L110 43 Q114 62 108 84 L100 95 L92 84 Q86 62 90 43 Z"/>
+      </g>
+      <circle class="eye" cx="96" cy="47" r="2.2"/>
+      <circle class="eye" cx="104" cy="47" r="2.2"/>
+    </svg>
+  </div>
+  <div class="word" id="word"></div>
+  <div class="tag" id="tag">SOUNDBOARD FOR DISCORD</div>
+  <div class="loader" id="loader">
+    <div class="bar"><div class="fill" id="fill"></div></div>
+    <div class="status" id="status">Waking the bat</div>
+  </div>
+  <div class="flash"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ---- tiny synth: echolocation chirps, a rising sweep, and an impact (kept quiet) ----
+let ac = null;
+try { ac = new AudioContext(); } catch {}
+const VOL = 0.07;
+function chirp() {
+  if (!ac) return;
+  const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+  o.type = 'sine'; o.frequency.setValueAtTime(3200, t); o.frequency.exponentialRampToValueAtTime(1400, t + 0.06);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(VOL, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.1);
+}
+function riser(dur) {
+  if (!ac) return;
+  const o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain(), t = ac.currentTime;
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(420, t + dur);
+  f.type = 'lowpass'; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(4000, t + dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(VOL * 0.6, t + dur);
+  o.connect(f).connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+function impact() {
+  if (!ac) return;
+  const t = ac.currentTime;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.5);
+  g.gain.setValueAtTime(VOL * 2, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.75);
+  const n = ac.createBufferSource(), buf = ac.createBuffer(1, ac.sampleRate * 0.4, ac.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+  const ng = ac.createGain(); ng.gain.value = VOL * 0.8;
+  n.buffer = buf; n.connect(ng).connect(ac.destination); n.start(t);
+}
+
+function ping() {
+  const r = document.createElement('div'); r.className = 'ring';
+  $('rings').appendChild(r); requestAnimationFrame(() => r.classList.add('go'));
+  setTimeout(() => r.remove(), 1700);
+  chirp();
+}
+
+// ---- timeline ----
+let pinging = null, ready = false, finished = false;
+const letters = 'SOUNDBAT'.split('').map((ch, i) => {
+  const s = document.createElement('span'); s.textContent = ch; s.className = i < 5 ? 's' : 'b';
+  $('word').appendChild(s); return s;
+});
+const steps = ['Waking the bat', 'Tuning echolocation', 'Loading your sounds', 'Connecting to Discord'];
+
+async function intro() {
+  await wait(150); ping();
+  await wait(450); ping();
+  pinging = setInterval(ping, 900);
+  await wait(500);
+  $('bat').classList.add('lit');
+  riser(2.2);
+  for (const s of letters) { s.classList.add('on'); await wait(90); }
+  $('tag').classList.add('on');
+  $('loader').classList.add('on');
+  for (let i = 0; i < steps.length; i++) {
+    $('status').textContent = steps[i];
+    $('fill').style.width = (i + 1) * 22 + '%';
+    await wait(380);
+  }
+}
+async function finale() {
+  if (finished) return; finished = true;
+  $('status').textContent = 'Ready';
+  $('fill').style.width = '100%';
+  await wait(250);
+  clearInterval(pinging);
+  impact();
+  document.body.classList.add('finale');
+}
+
+const introDone = intro();
+// The app tells us when the main window is ready; we never finish before the intro has played.
+window.splash?.onReady(async () => { await introDone; finale(); });
+</script>
+</body>
+</html>

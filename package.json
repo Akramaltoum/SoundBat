@@ -1,0 +1,96 @@
+{
+  "name": "soundboard",
+  "version": "1.1.0",
+  "description": "SoundBat \u2014 neon soundboard that plays into your Discord call",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "node --env-file=.env index.js",
+    "app": "electron .",
+    "dist": "electron-builder --win portable --x64"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.19.2",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "discord.js": "^14.27.0",
+    "express": "^4.21.2",
+    "multer": "^2.0.2",
+    "opusscript": "^0.1.1",
+    "uiohook-napi": "^1.5.5"
+  },
+  "productName": "SoundBat",
+  "author": "Akram",
+  "build": {
+    "appId": "com.akram.soundbat",
+    "productName": "SoundBat",
+    "files": [
+      "main.js",
+      "app-main.js",
+      "icon.png",
+      "splash-preload.js",
+      "splash.html",
+      "preload.js",
+      "index.js",
+      "public/**",
+      "starter/**",
+      "package.json",
+      "node_modules/**",
+      "!node_modules/uiohook-napi/libuiohook/**",
+      "!node_modules/uiohook-napi/src/**"
+    ],
+    "asarUnpack": [
+      "node_modules/@ffmpeg-installer/**",
+      "node_modules/uiohook-napi/**",
+      "node_modules/@snazzah/**"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SoundBat.zip",
+      "icon": "icon-512.png"
+    },
+    "electronLanguages": [
+      "en-US",
+      "en"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "Akramaltoum",
+      "repo": "SoundBat",
+      "releaseType": "release"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SoundBat-mac-${arch}.zip",
+      "icon": "icon-512.png",
+      "identity": "-",
+      "category": "public.app-category.music"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Akramaltoum/SoundBat.git"
+  }
+}
