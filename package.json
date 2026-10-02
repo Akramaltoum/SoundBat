@@ -1,6 +1,6 @@
 {
   "name": "soundboard",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "SoundBat \u2014 neon soundboard that plays into your Discord call",
   "main": "main.js",
   "private": true,
