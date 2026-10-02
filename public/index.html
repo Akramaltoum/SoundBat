@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SoundBat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0814; --bar:#0d0a1c; --panel:#110d24; --line:#231a47; --line2:#3a2d7a;
+    --text:#ece9ff; --soft:#cfc7ff; --dim:#7d73b3;
+    --a:#8b5cff; --b:#00e5ff; --hot:#ff3d7f; --ok:#39ff88;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; font:14px/1.3 'Chakra Petch', system-ui, sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column; overflow:hidden; user-select:none; }
+  button { font:inherit; cursor:pointer; }
+  a { color:var(--b); }
+  .label { font-size:11px; font-weight:600; letter-spacing:.18em; color:var(--dim); text-transform:uppercase; }
+
+  /* title bar (desktop app only) */
+  #titlebar { height:36px; flex:none; display:none; align-items:center; justify-content:space-between; padding:0 6px 0 14px; background:var(--bar); border-bottom:1px solid var(--line); -webkit-app-region:drag; }
+  body.app #titlebar { display:flex; }
+  .logo { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:.2em; }
+  .logo svg { filter:drop-shadow(0 0 5px var(--a)); }
+  .logo .s { color:#fff; } .logo .b { color:var(--a); text-shadow:0 0 10px var(--a); margin-left:-8px; }
+  .winbtns { display:flex; -webkit-app-region:no-drag; }
+  .winbtns button { width:40px; height:30px; border:0; border-radius:6px; background:transparent; color:#6f65a3; font-size:14px; }
+  .winbtns button:hover { background:#1a1433; color:var(--text); }
+  .winbtns button.close:hover { background:var(--hot); color:#0a0814; }
+
+  /* status row */
+  .status { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px 14px; }
+  .where { font-size:18px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px; }
+  .dot { color:var(--dim); margin-left:4px; }
+  .dot.on { color:var(--b); text-shadow:0 0 8px var(--b); }
+  .dot.off { color:var(--hot); text-shadow:0 0 8px var(--hot); }
+  .btn { height:36px; padding:0 14px; border-radius:6px; border:1px solid var(--line2); background:transparent; color:var(--soft); font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
+  .btn:hover { border-color:var(--a); color:#fff; box-shadow:0 0 12px rgba(139,92,255,.35); }
+  .btn.hot { border-color:var(--hot); background:var(--hot); color:#0a0814; font-weight:700; box-shadow:0 0 16px rgba(255,61,127,.55); }
+  .btn.hot:hover { box-shadow:0 0 22px rgba(255,61,127,.8); }
+  .btn.solid { border-color:var(--a); background:var(--a); color:#0a0814; font-weight:700; box-shadow:0 0 14px rgba(139,92,255,.5); }
+  .btn.on { border-color:var(--a); color:#fff; box-shadow:0 0 12px rgba(139,92,255,.45); }
+  .btn.sm { height:30px; padding:0 10px; font-size:11px; }
+  .row { display:flex; gap:8px; align-items:center; }
+
+  /* toolbar + notices */
+  .tools { flex:none; display:flex; gap:8px; padding:0 18px 12px; }
+  .notice { margin:0 18px 12px; padding:10px 12px; border:1px solid var(--line2); border-radius:6px; background:var(--panel); color:var(--soft); font-size:13px; }
+  .notice.update { display:flex; align-items:center; justify-content:space-between; gap:12px; border-color:var(--a); box-shadow:0 0 16px rgba(139,92,255,.35); color:#fff; }
+  .notice.update[hidden] { display:none; }
+  .notice.err { border-color:var(--hot); color:#ffb3cc; }
+
+  /* pads */
+  main { flex:1; overflow-y:auto; padding:4px 18px 16px; }
+  main::-webkit-scrollbar { width:8px; } main::-webkit-scrollbar-thumb { background:var(--line2); border-radius:4px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(132px, 1fr)); gap:12px; }
+  .pad { --c:var(--a); position:relative; height:108px; border-radius:8px; padding:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+         background:var(--panel); border:1px solid color-mix(in srgb, var(--c) 35%, transparent); box-shadow:inset 0 0 12px color-mix(in srgb, var(--c) 8%, transparent);
+         color:#fff; transition:border-color .12s, box-shadow .12s, transform .06s; }
+  .pad:hover { border-color:color-mix(in srgb, var(--c) 75%, transparent); box-shadow:0 0 14px color-mix(in srgb, var(--c) 35%, transparent), inset 0 0 14px color-mix(in srgb, var(--c) 14%, transparent); }
+  .pad:active { transform:scale(.96); }
+  .pad.playing { background:color-mix(in srgb, var(--c) 15%, var(--panel)); border-color:var(--c); box-shadow:0 0 24px color-mix(in srgb, var(--c) 67%, transparent), inset 0 0 18px color-mix(in srgb, var(--c) 33%, transparent); }
+  .pad .name { font-size:14px; font-weight:700; text-align:center; line-height:1.15; word-break:break-word; }
+  .pad .key { font-size:10px; font-weight:600; letter-spacing:.12em; color:var(--c); text-shadow:0 0 6px var(--c); text-transform:uppercase; min-height:12px; }
+  .pad .vol { position:absolute; top:6px; left:8px; font-size:10px; color:var(--dim); }
+  .pad.add { border:1px dashed var(--line2); box-shadow:none; color:var(--dim); font-weight:600; letter-spacing:.1em; }
+  .pad.add:hover { color:#fff; border-color:var(--a); }
+  body.editing .pad:not(.add) { border-style:dashed; cursor:grab; }
+  body.dropping main { outline:2px dashed var(--a); outline-offset:-6px; }
+
+  /* volume bar */
+  footer { flex:none; display:flex; align-items:center; gap:12px; padding:14px 18px; border-top:1px solid #1c1540; }
+  input[type=range] { -webkit-appearance:none; appearance:none; flex:1; height:4px; background:linear-gradient(var(--a), var(--a)) 0/var(--fill, 50%) 100% no-repeat, #1d1640; outline:none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; box-shadow:0 0 10px var(--a); cursor:pointer; }
+  #masterVal { font-size:13px; font-weight:700; color:var(--soft); width:40px; text-align:right; }
+
+  /* dialogs */
+  dialog { background:var(--bar); color:var(--text); border:1px solid var(--line2); border-radius:10px; width:min(380px, 92vw); padding:18px; box-shadow:0 0 40px rgba(139,92,255,.25); }
+  dialog::backdrop { background:rgba(5,4,10,.75); }
+  dialog form { display:flex; flex-direction:column; gap:14px; }
+  dialog h3 { margin:0; font-size:15px; letter-spacing:.14em; text-transform:uppercase; color:var(--a); text-shadow:0 0 8px var(--a); }
+  dialog label { display:flex; flex-direction:column; gap:6px; }
+  dialog input[type=text] { font:inherit; padding:9px 10px; border-radius:6px; border:1px solid var(--line2); background:var(--panel); color:var(--text); user-select:text; }
+  dialog input[type=text]:focus { outline:none; border-color:var(--a); box-shadow:0 0 10px rgba(139,92,255,.4); }
+  dialog ol { margin:0; padding-left:18px; color:var(--soft); font-size:13px; line-height:1.5; }
+  .toggle { display:flex; align-items:center; justify-content:space-between; gap:10px; font-weight:600; color:var(--soft); }
+  .toggle input { width:18px; height:18px; accent-color:var(--a); }
+  .between { display:flex; justify-content:space-between; gap:8px; }
+  .sep { height:1px; background:var(--line); margin:2px 0; }
+  .swatches { display:flex; gap:8px; }
+  .swatches button { width:26px; height:26px; border-radius:50%; border:2px solid transparent; }
+  .swatches button.sel { border-color:#fff; }
+  .formErr { color:#ffb3cc; font-size:13px; margin:0; min-height:0; }
+
+  /* ----- first-run welcome ----- */
+  #welcome { position:fixed; inset:0; z-index:50; background:var(--bg); display:flex; flex-direction:column; }
+  #welcome[hidden], #welcome [hidden] { display:none !important; }
+  body.app #welcome { top:36px; }
+  .wz { flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:14px; padding:16px 32px 24px; text-align:center; overflow-y:auto; }
+  .wz > * { flex-shrink:0; }
+  .wz > :first-child { margin-top:auto; } .wz > :last-child { margin-bottom:auto; }
+  .wz h1 { margin:0; font-size:34px; letter-spacing:.12em; line-height:1; }
+  .wz h1 .s { color:#fff; } .wz h1 .b { color:var(--a); text-shadow:0 0 16px var(--a); }
+  .wz h2 { margin:0; font-size:20px; letter-spacing:.08em; color:#fff; }
+  .wz p { margin:0; color:var(--soft); max-width:460px; line-height:1.5; }
+  .wz .big { height:46px; padding:0 26px; font-size:14px; }
+  .wz .muted { color:var(--dim); font-size:12px; }
+  .wz .linkish { background:none; border:0; color:var(--dim); text-decoration:underline; font-size:12px; padding:4px; }
+  .wz .linkish:hover { color:var(--soft); }
+  .stepper { display:flex; gap:8px; justify-content:center; padding:14px 0 0; }
+  .stepper div { width:34px; height:4px; border-radius:2px; background:var(--line2); }
+  .stepper div.on { background:var(--a); box-shadow:0 0 8px var(--a); }
+  .howto { text-align:left; display:flex; flex-direction:column; gap:8px; width:100%; max-width:440px; }
+  .howto div { display:flex; gap:12px; align-items:flex-start; padding:8px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--soft); font-size:13px; line-height:1.45; }
+  .howto b { color:#fff; }
+  .howto .n { flex:none; width:22px; height:22px; border-radius:50%; border:1px solid var(--a); color:var(--a); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .wzfield { display:flex; gap:8px; width:100%; max-width:440px; }
+  .wzfield input { flex:1; font:inherit; padding:11px 12px; border-radius:6px; border:1px solid var(--line2); background:var(--panel); color:var(--text); user-select:text; }
+  .wzfield input:focus { outline:none; border-color:var(--a); box-shadow:0 0 10px rgba(139,92,255,.4); }
+  .wzerr { color:#ffb3cc; font-size:13px; min-height:18px; }
+  .people { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px; width:100%; max-width:640px; }
+  .person { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; border:1px solid var(--line2); background:var(--panel); color:#fff; text-align:left; }
+  .person:hover { border-color:var(--a); box-shadow:0 0 14px rgba(139,92,255,.4); }
+  .person img, .person .ph { width:36px; height:36px; border-radius:50%; background:var(--line2); flex:none; }
+  .person small { display:block; color:var(--dim); font-size:11px; }
+  .wbat { filter:drop-shadow(0 0 14px var(--a)); animation:wbob 1.6s ease-in-out infinite; }
+  @keyframes wbob { 0%,100% { transform:translateY(-4px); } 50% { transform:translateY(4px); } }
+  .wbat .wing { transform-box:view-box; transform-origin:108px 50px; animation:wflap .5s ease-in-out infinite; }
+  @keyframes wflap { 0%,100% { transform:rotate(-18deg) scaleY(.92); } 50% { transform:rotate(12deg) scaleY(1.04); } }
+  .wbat .arc { fill:none; stroke:var(--b); stroke-width:2; stroke-linecap:round; transform-box:view-box; transform-origin:100px 58px; animation:warc 1.8s ease-out infinite; opacity:0; }
+  .wbat .a2 { animation-delay:.6s; } .wbat .a3 { animation-delay:1.2s; }
+  @keyframes warc { 0% { opacity:0; transform:scale(.7); } 30% { opacity:1; } 100% { opacity:0; transform:scale(1.15); } }
+  .themes { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .theme { width:58px; height:58px; border-radius:12px; border:2px solid var(--line2); background:var(--panel); display:flex; align-items:center; justify-content:center; gap:4px; padding:0; }
+  .theme i { width:14px; height:14px; border-radius:50%; display:block; }
+  .theme.sel { border-color:#fff; box-shadow:0 0 16px var(--a); }
+  /* avatars + account */
+  .av { border-radius:50%; overflow:hidden; flex:none; display:flex; align-items:center; justify-content:center; background:#1a1238; border:2px solid var(--a); box-shadow:0 0 10px color-mix(in srgb, var(--a) 50%, transparent); }
+  .av img { width:100%; height:100%; object-fit:cover; display:block; }
+  .av svg { width:74%; }
+  .me { display:flex; align-items:center; gap:8px; height:36px; padding:0 12px 0 4px; border-radius:18px; border:1px solid var(--line2); background:transparent; color:#fff; font-weight:600; font-size:13px; max-width:180px; }
+  .me:hover { border-color:var(--a); box-shadow:0 0 12px color-mix(in srgb, var(--a) 40%, transparent); }
+  .me span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .batpick { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .batpick button { padding:0; border:0; background:none; border-radius:50%; }
+  .batpick button.sel .av { border-color:#fff; box-shadow:0 0 16px #fff8; }
+  .acct { display:flex; flex-direction:column; gap:14px; }
+  .card { border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--panel); display:flex; flex-direction:column; gap:12px; }
+  .card .head { display:flex; align-items:center; gap:12px; }
+  .card .head b { color:#fff; font-size:15px; display:block; }
+  .card .head small { color:var(--dim); font-size:12px; }
+  .tabs { display:flex; gap:6px; }
+  .tabs button { flex:1; }
+  #setupDlg { width:min(460px, 94vw); max-height:88vh; }
+  #setupDlg form { max-height:calc(88vh - 40px); overflow-y:auto; padding-right:4px; }
+  #setupDlg [hidden] { display:none !important; }
+  dialog label.toggle { flex-direction:row; }
+  .danger { border-color:var(--hot) !important; color:var(--hot) !important; }
+  .danger:hover { background:var(--hot) !important; color:#0a0814 !important; }
+  .spin { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--b); box-shadow:0 0 8px var(--b); animation:blink 1s ease-in-out infinite; margin-right:6px; }
+  @keyframes blink { 50% { opacity:.2; } }
+</style>
+</head>
+<body>
+<div id="titlebar">
+  <div class="logo">
+    <svg width="38" height="16" viewBox="-44 0 288 120" aria-hidden="true">
+      <g fill="none" stroke="#00e5ff" stroke-width="8" stroke-linecap="round"><path d="M-8 38 Q-20 58 -8 78 M208 38 Q220 58 208 78"/></g>
+      <g style="fill:var(--a)">
+        <path d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/>
+        <path d="M92 44 Q72 34 52 27 Q32 20 7 36 Q21 42 27 60 Q38 51 50 64 Q62 55 74 69 Q84 74 93 80 Z"/>
+        <path d="M90 43 L94 27 L100 39 L106 27 L110 43 Q114 62 108 84 L100 95 L92 84 Q86 62 90 43 Z"/>
+      </g>
+    </svg>
+    <span class="s">SOUND</span><span class="b">BAT</span>
+  </div>
+  <div class="winbtns">
+    <button id="winMin" aria-label="Minimize">&#8212;</button>
+    <button id="winMax" aria-label="Maximize">&#9633;</button>
+    <button id="winClose" class="close" aria-label="Close">&#10005;</button>
+  </div>
+</div>
+
+<div id="welcome" hidden>
+  <div class="stepper" id="wzSteps"><div></div><div></div><div></div><div></div><div></div></div>
+
+  <div class="wz" data-step="hello">
+    <svg class="wbat" width="240" height="144" viewBox="0 0 200 120" aria-hidden="true">
+      <path class="arc" d="M60 36 Q48 58 60 80 M140 36 Q152 58 140 80"/>
+      <path class="arc a2" d="M46 28 Q30 58 46 88 M154 28 Q170 58 154 88"/>
+      <path class="arc a3" d="M32 20 Q12 58 32 96 M168 20 Q188 58 168 96"/>
+      <g style="fill:var(--a)">
+        <path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/>
+        <g transform="translate(200 0) scale(-1 1)"><path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/></g>
+        <path d="M90 43 L94 27 L100 39 L106 27 L110 43 Q114 62 108 84 L100 95 L92 84 Q86 62 90 43 Z"/>
+      </g>
+      <circle cx="96" cy="47" r="2.2" fill="#00e5ff"/><circle cx="104" cy="47" r="2.2" fill="#00e5ff"/>
+    </svg>
+    <h1><span class="s">SOUND</span><span class="b">BAT</span></h1>
+    <p>Play any sound straight into your Discord call — from the app, your phone, or a hotkey mid-game. Let's get your bat flying.</p>
+    <button class="btn solid big" id="wzStart">Let's go</button>
+    <div class="muted">4 quick steps · about 3 minutes</div>
+  </div>
+
+  <div class="wz" data-step="account" hidden>
+    <div id="wzAv"></div>
+    <h2 id="wzAcctTitle">1 · Make your SoundBat account</h2>
+    <p>This is you inside SoundBat. It stays on this PC — no email or password.</p>
+    <div class="wzfield"><input type="text" id="wzName" maxlength="24" placeholder="Your name or gamertag"></div>
+    <div>
+      <div class="label" style="margin-bottom:8px">Pick your bat — or upload a photo</div>
+      <div class="batpick" id="wzBats"></div>
+    </div>
+    <button class="linkish" id="wzPhoto">Upload a photo instead</button>
+    <input type="file" id="wzPhotoIn" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+    <div>
+      <div class="label" style="margin-bottom:8px">Your glow</div>
+      <div class="themes" id="wzThemes"></div>
+    </div>
+    <button class="btn solid big" id="wzAcctBtn">Create account</button>
+    <div class="wzerr" id="wzAcctErr"></div>
+  </div>
+
+  <div class="wz" data-step="token" hidden>
+    <svg class="wbat" width="120" height="72" viewBox="0 0 200 120" aria-hidden="true">
+      <path class="arc" d="M60 36 Q48 58 60 80 M140 36 Q152 58 140 80"/>
+      <path class="arc a2" d="M46 28 Q30 58 46 88 M154 28 Q170 58 154 88"/>
+      <path class="arc a3" d="M32 20 Q12 58 32 96 M168 20 Q188 58 168 96"/>
+      <g style="fill:var(--a)">
+        <path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/>
+        <g transform="translate(200 0) scale(-1 1)"><path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/></g>
+        <path d="M90 43 L94 27 L100 39 L106 27 L110 43 Q114 62 108 84 L100 95 L92 84 Q86 62 90 43 Z"/>
+      </g>
+      <circle cx="96" cy="47" r="2.2" fill="#00e5ff"/><circle cx="104" cy="47" r="2.2" fill="#00e5ff"/>
+    </svg>
+    <h2>2 · Give your bat a body</h2>
+    <p>SoundBat plays sounds through your own Discord bot. Making one is free — Discord just needs you to click a few buttons.</p>
+    <div class="howto">
+      <div><span class="n">1</span><span>Click <b>Open Discord</b> below and log in if it asks.</span></div>
+      <div><span class="n">2</span><span>Click <b>New Application</b>, name it <b>SoundBat</b>, tick the box, <b>Create</b>.</span></div>
+      <div><span class="n">3</span><span>Click <b>Bot</b> on the left → <b>Reset Token</b> → <b>Yes, do it!</b> → <b>Copy</b>.</span></div>
+      <div><span class="n">4</span><span>Come back to SoundBat — it grabs the token by itself.</span></div>
+    </div>
+    <a class="btn big" href="https://discord.com/developers/applications" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Open Discord ↗</a>
+    <div class="wzfield">
+      <input type="text" id="wzToken" placeholder="…or paste your bot token here" autocomplete="off" spellcheck="false">
+      <button class="btn solid" id="wzTokenBtn">Connect</button>
+    </div>
+    <div class="wzerr" id="wzTokenErr"></div>
+  </div>
+
+  <div class="wz" data-step="invite" hidden>
+    <svg class="wbat" width="120" height="72" viewBox="0 0 200 120" aria-hidden="true">
+      <path class="arc" d="M60 36 Q48 58 60 80 M140 36 Q152 58 140 80"/>
+      <path class="arc a2" d="M46 28 Q30 58 46 88 M154 28 Q170 58 154 88"/>
+      <path class="arc a3" d="M32 20 Q12 58 32 96 M168 20 Q188 58 168 96"/>
+      <g style="fill:var(--a)">
+        <path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/>
+        <g transform="translate(200 0) scale(-1 1)"><path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/></g>
+        <path d="M90 43 L94 27 L100 39 L106 27 L110 43 Q114 62 108 84 L100 95 L92 84 Q86 62 90 43 Z"/>
+      </g>
+      <circle cx="96" cy="47" r="2.2" fill="#00e5ff"/><circle cx="104" cy="47" r="2.2" fill="#00e5ff"/>
+    </svg>
+    <h2>3 · Let it into your server</h2>
+    <p>Add your bat to the Discord server you hang out in. Pick the server, then <b>Authorize</b>.</p>
+    <button class="btn solid big" id="wzInvite">Add to my server ↗</button>
+    <div class="muted" id="wzInviteWait"><span class="spin"></span>Waiting for it to join…</div>
+  </div>
+
+  <div class="wz" data-step="you" hidden>
+    <svg class="wbat" width="120" height="72" viewBox="0 0 200 120" aria-hidden="true">
+      <path class="arc" d="M60 36 Q48 58 60 80 M140 36 Q152 58 140 80"/>
+      <path class="arc a2" d="M46 28 Q30 58 46 88 M154 28 Q170 58 154 88"/>
+      <path class="arc a3" d="M32 20 Q12 58 32 96 M168 20 Q188 58 168 96"/>
+      <g style="fill:var(--a)">
+        <path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/>
+        <g transform="translate(200 0) scale(-1 1)"><path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/></g>
+        <path d="M90 43 L94 27 L100 39 L106 27 L110 43 Q114 62 108 84 L100 95 L92 84 Q86 62 90 43 Z"/>
+      </g>
+      <circle cx="96" cy="47" r="2.2" fill="#00e5ff"/><circle cx="104" cy="47" r="2.2" fill="#00e5ff"/>
+    </svg>
+    <h2>4 · Which one is you?</h2>
+    <p>Hop into any voice channel in that server — then click your name so the bat knows who to follow.</p>
+    <div class="people" id="wzPeople"></div>
+    <div class="muted" id="wzPeopleWait"><span class="spin"></span>Looking for people in voice channels…</div>
+    <button class="linkish" id="wzManual">Enter my user ID instead</button>
+    <div class="wzfield" id="wzManualBox" hidden>
+      <input type="text" id="wzOwner" placeholder="Your Discord user ID" inputmode="numeric">
+      <button class="btn solid" id="wzOwnerBtn">Save</button>
+    </div>
+    <div class="wzerr" id="wzOwnerErr"></div>
+  </div>
+
+  <div class="wz" data-step="done" hidden>
+    <svg class="wbat" width="240" height="144" viewBox="0 0 200 120" aria-hidden="true">
+      <path class="arc" d="M60 36 Q48 58 60 80 M140 36 Q152 58 140 80"/>
+      <path class="arc a2" d="M46 28 Q30 58 46 88 M154 28 Q170 58 154 88"/>
+      <path class="arc a3" d="M32 20 Q12 58 32 96 M168 20 Q188 58 168 96"/>
+      <g style="fill:var(--a)">
+        <path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/>
+        <g transform="translate(200 0) scale(-1 1)"><path class="wing" d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/></g>
+        <path d="M90 43 L94 27 L100 39 L106 27 L110 43 Q114 62 108 84 L100 95 L92 84 Q86 62 90 43 Z"/>
+      </g>
+      <circle cx="96" cy="47" r="2.2" fill="#00e5ff"/><circle cx="104" cy="47" r="2.2" fill="#00e5ff"/>
+    </svg>
+    <h1><span class="s" id="wzHello">YOU'RE </span><span class="b">SET</span></h1>
+    <p class="muted">A starter pack of sounds is already on your board. Drop in your own, and set hotkeys in <b>Edit</b>.</p>
+    <button class="btn solid big" id="wzFinish">Open SoundBat</button>
+  </div>
+</div>
+
+<div class="status">
+  <div>
+    <div class="label" id="statusLabel">Connecting</div>
+    <div class="where"><span id="whereText">—</span><span class="dot" id="dot">&#9679;</span></div>
+  </div>
+  <div class="row" style="flex-wrap:wrap;justify-content:flex-end">
+    <button class="me" id="meChip" hidden title="Your account"></button>
+    <button class="btn" id="editBtn">Edit</button>
+    <button class="btn" id="settingsBtn">Settings</button>
+    <span style="width:8px"></span>
+    <button class="btn" id="joinLeaveBtn">Join</button>
+    <button class="btn hot" id="stopBtn" title="Stop (Esc)">Stop</button>
+  </div>
+</div>
+
+<div class="notice update" id="updateBar" hidden>
+  <span>SoundBat has been updated.</span>
+  <button class="btn sm solid" id="restartBtn">Restart now</button>
+</div>
+<div class="notice" id="notice" hidden></div>
+<div class="notice err" id="err" hidden></div>
+
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+<input type="file" id="fileIn" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm,.flac,.aac,.opus" multiple hidden>
+
+<footer>
+  <div class="label">Vol</div>
+  <input type="range" id="master" min="0" max="1.5" step="0.05" aria-label="Master volume">
+  <div id="masterVal"></div>
+</footer>
+
+<dialog id="dlg">
+  <form method="dialog" id="dlgForm">
+    <h3>Edit sound</h3>
+    <label><span class="label">Name</span><input type="text" id="fName" maxlength="40"></label>
+    <label><span class="label">Volume <span id="fVolVal"></span></span><input type="range" id="fVol" min="0" max="2" step="0.05"></label>
+    <div><div class="label" style="margin-bottom:6px">Glow</div><div class="swatches" id="swatches"></div></div>
+    <div class="between">
+      <button type="button" class="btn sm" id="fKey">Set hotkey</button>
+      <button type="button" class="btn sm" id="fKeyClear">Clear key</button>
+      <button type="button" class="btn sm" id="fPreview">Preview</button>
+    </div>
+    <div class="sep"></div>
+    <div class="between">
+      <button type="button" class="btn sm" id="fDelete" style="border-color:var(--hot);color:var(--hot)">Delete</button>
+      <div class="row">
+        <button class="btn sm" value="cancel">Cancel</button>
+        <button class="btn sm solid" value="save">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="setupDlg">
+  <form id="setupForm" onsubmit="return false">
+    <div class="between" style="align-items:center"><h3>Settings</h3><button type="button" class="btn sm" id="setupCancel">Close</button></div>
+    <div class="tabs">
+      <button type="button" class="btn sm on" id="tabGeneral">General</button>
+      <button type="button" class="btn sm" id="tabAccount">Account</button>
+    </div>
+
+    <div id="paneGeneral" style="display:flex;flex-direction:column;gap:12px">
+      <label class="toggle">Follow me between channels <input type="checkbox" id="follow"></label>
+      <label class="toggle">In-game hotkeys <input type="checkbox" id="globalKeys"></label>
+      <div class="toggle">Stop key <button type="button" class="btn sm" id="stopKeyBtn">None</button></div>
+      <div class="toggle" style="align-items:flex-start">Glow <div class="themes" id="setThemes" style="justify-content:flex-end"></div></div>
+      <p class="formErr" id="hookErr" hidden></p>
+    </div>
+
+    <div id="paneAccount" class="acct" hidden>
+      <div class="card">
+        <div class="label">SoundBat profile</div>
+        <div class="head">
+          <div id="accAv"></div>
+          <label style="flex:1"><span class="label">Name</span><input type="text" id="accName" maxlength="24"></label>
+        </div>
+        <div class="batpick" id="accBats"></div>
+        <div class="row" style="flex-wrap:wrap">
+          <button type="button" class="btn sm" id="accPhoto">Upload photo</button>
+          <button type="button" class="btn sm" id="accUseDiscord">Use Discord picture</button>
+          <button type="button" class="btn sm" id="accClearPhoto">Bat avatar</button>
+          <input type="file" id="accPhotoIn" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+        </div>
+        <button type="button" class="btn sm solid" id="accSave" style="align-self:flex-end">Save profile</button>
+      </div>
+
+      <div class="card">
+        <div class="label">Discord account</div>
+        <div class="head"><div id="ownAv"></div><div><b id="ownName">—</b><small>The bat joins whatever call this account is in</small></div></div>
+        <button type="button" class="btn sm" id="ownSwitch" style="align-self:flex-start">Switch Discord account</button>
+        <div id="ownPick" hidden style="display:flex;flex-direction:column;gap:8px">
+          <small class="label" style="letter-spacing:.08em">Join a voice channel, then pick yourself</small>
+          <div class="people" id="ownPeople"></div>
+          <div class="muted" id="ownWait"><span class="spin"></span>Looking for people in voice channels…</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">Bot</div>
+        <div class="head"><div><b id="botName">—</b><small id="botSub">Plays your sounds in the call</small></div></div>
+        <button type="button" class="btn sm" id="botSwitch" style="align-self:flex-start">Use a different bot</button>
+        <div id="botPick" hidden style="display:flex;flex-direction:column;gap:8px">
+          <input type="text" id="sToken" autocomplete="off" spellcheck="false" placeholder="Paste the new bot token">
+          <button type="button" class="btn sm solid" id="botConnect" style="align-self:flex-end">Connect</button>
+        </div>
+      </div>
+
+      <p class="formErr" id="setupErr"></p>
+      <div class="card" style="border-color:color-mix(in srgb, var(--hot) 40%, transparent)">
+        <div class="between" style="align-items:center">
+          <div><b style="color:#fff">Log out</b><div class="muted">Disconnects the bot and removes your account from this PC.</div></div>
+          <button type="button" class="btn sm danger" id="logoutBtn" style="white-space:nowrap">Log out</button>
+        </div>
+        <label class="toggle" style="font-weight:500;font-size:13px">Also delete my sounds <input type="checkbox" id="logoutWipe"></label>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const GLOWS = ['#8b5cff', '#00e5ff', '#ff3d7f', '#39ff88', '#ffb020', '#ffffff'];
+let state = { sounds: [], bot: {} };
+let editing = false, editId = null, pendingKey, pendingColor, capturing = false, previewAudio = null;
+
+// ----- desktop window controls -----
+if (window.appWindow) {
+  document.body.classList.add('app');
+  $('winMin').onclick = () => window.appWindow.minimize();
+  $('winMax').onclick = () => window.appWindow.maximize?.();
+  window.appWindow.onUpdateReady?.(() => { $('updateBar').hidden = false; });
+  $('restartBtn').onclick = () => window.appWindow.restart();
+  $('titlebar').ondblclick = (e) => { if (!e.target.closest('button')) window.appWindow.maximize?.(); };
+  $('winClose').onclick = () => window.appWindow.close();
+}
+
+async function api(method, url, body) {
+  const opts = { method, headers: {} };
+  if (body instanceof FormData) opts.body = body;
+  else if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { showErr(j.error || 'Request failed'); throw new Error(j.error); }
+  showErr('');
+  return j;
+}
+let errTimer;
+function showErr(msg) {
+  $('err').textContent = msg; $('err').hidden = !msg;
+  clearTimeout(errTimer); if (msg) errTimer = setTimeout(() => { $('err').hidden = true; }, 6000);
+}
+
+async function refresh() {
+  try { state = await (await fetch('/api/state')).json(); }
+  catch { $('statusLabel').textContent = 'Offline'; $('whereText').textContent = 'App not running'; return; }
+  render();
+}
+
+// ----- themes -----
+const THEMES = [
+  { name: 'Violet', a: '#8b5cff', b: '#00e5ff' },
+  { name: 'Ice', a: '#00e5ff', b: '#ff3d7f' },
+  { name: 'Rose', a: '#ff3d7f', b: '#8b5cff' },
+  { name: 'Toxic', a: '#39ff88', b: '#00e5ff' },
+  { name: 'Ember', a: '#ffb020', b: '#ff3d7f' },
+];
+function applyTheme(t) {
+  const th = t || THEMES[0];
+  document.documentElement.style.setProperty('--a', th.a);
+  document.documentElement.style.setProperty('--b', th.b);
+}
+function paintThemes(boxId) {
+  const box = $(boxId); if (!box) return;
+  const cur = state.theme || THEMES[0];
+  box.innerHTML = '';
+  THEMES.forEach((th) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'theme' + (th.a === cur.a && th.b === cur.b ? ' sel' : '');
+    b.title = th.name; b.setAttribute('aria-label', th.name + ' glow');
+    b.innerHTML = `<i style="background:${th.a};box-shadow:0 0 8px ${th.a}"></i><i style="background:${th.b};box-shadow:0 0 8px ${th.b}"></i>`;
+    b.onclick = async () => { state.theme = { a: th.a, b: th.b }; applyTheme(state.theme); paintThemes(boxId); await api('PATCH', '/api/settings', { theme: state.theme }).catch(() => {}); };
+    box.appendChild(b);
+  });
+}
+
+function setFill(el) { el.style.setProperty('--fill', (el.value - el.min) / (el.max - el.min) * 100 + '%'); }
+
+let themeSig = '';
+function render() {
+  const { bot = {}, voice, you } = state;
+  const ts = JSON.stringify(state.theme);
+  if (ts !== themeSig) { themeSig = ts; applyTheme(state.theme); if ($('setupDlg').open) paintThemes('setThemes'); }
+  $('statusLabel').textContent = !bot.online ? 'Bot offline' : voice ? 'Connected' : 'Not in a call';
+  $('whereText').textContent = voice ? '#' + voice.channel : you ? '#' + you.channel : bot.tag || 'SoundBat';
+  $('dot').className = 'dot' + (voice ? ' on' : bot.online ? '' : ' off');
+  $('joinLeaveBtn').textContent = voice ? 'Leave' : 'Join';
+  const chipSig = JSON.stringify([state.profile, state.owner?.avatar, avatarBust]);
+  if (state.profile && $('meChip').dataset.sig !== chipSig) {
+    $('meChip').dataset.sig = chipSig;
+    $('meChip').innerHTML = avatarHTML(state.profile, 28) + `<span>${esc(state.profile.name)}</span>`;
+  }
+  $('meChip').hidden = !state.profile;
+  if (document.activeElement !== $('master')) { $('master').value = state.masterVolume; setFill($('master')); }
+  $('masterVal').textContent = Math.round(state.masterVolume * 100) + '%';
+
+  if (!$('setupDlg').open) {
+    $('follow').checked = !!state.followMe;
+    $('globalKeys').checked = !!state.globalHotkeys?.enabled;
+  }
+  if (!capturing) $('stopKeyBtn').textContent = state.stopHotkey || 'None';
+  const hookErr = state.globalHotkeys?.error;
+  $('hookErr').hidden = !hookErr; $('hookErr').textContent = hookErr ? 'In-game hotkeys unavailable: ' + hookErr : '';
+  if (state.lastError && $('err').hidden) showErr(state.lastError);
+  wzUpdate();
+
+  const n = $('notice');
+  if (bot.online && !you && bot.inviteUrl) {
+    n.hidden = false;
+    n.innerHTML = `Join a voice channel in Discord. Bot not in that server? <a href="${bot.inviteUrl}" target="_blank" rel="noopener">Invite it</a>.`;
+  } else n.hidden = true;
+
+  const grid = $('grid');
+  const sig = JSON.stringify([state.sounds, state.playing, editing]);
+  if (grid.dataset.sig === sig) return;
+  grid.dataset.sig = sig;
+  grid.innerHTML = '';
+  state.sounds.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'pad' + (state.playing === s.id ? ' playing' : '');
+    b.style.setProperty('--c', s.color || (i % 2 ? 'var(--b)' : 'var(--a)'));
+    b.innerHTML = `<div class="name">${esc(s.name)}</div><div class="key">${esc(s.hotkey || '')}</div>` +
+      (s.volume !== 1 ? `<div class="vol">${Math.round(s.volume * 100)}%</div>` : '');
+    b.onclick = () => editing ? openEdit(s.id) : playSound(s.id);
+    b.draggable = editing;
+    b.ondragstart = (e) => e.dataTransfer.setData('text/id', s.id);
+    b.ondragover = (e) => e.preventDefault();
+    b.ondrop = (e) => { e.preventDefault(); e.stopPropagation(); reorder(e.dataTransfer.getData('text/id'), s.id); };
+    grid.appendChild(b);
+  });
+  const add = document.createElement('button');
+  add.className = 'pad add';
+  add.innerHTML = '<div class="name">+ ADD</div><div class="key">or drop files</div>';
+  add.onclick = () => $('fileIn').click();
+  grid.appendChild(add);
+}
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+async function playSound(id) {
+  state.playing = id; render();
+  await api('POST', '/api/play/' + id).catch(() => {});
+  refresh();
+}
+async function reorder(fromId, toId) {
+  if (!fromId || fromId === toId) return;
+  const ids = state.sounds.map((s) => s.id);
+  ids.splice(ids.indexOf(fromId), 1);
+  ids.splice(ids.indexOf(toId), 0, fromId);
+  await api('POST', '/api/sounds/reorder', { ids });
+  refresh();
+}
+
+// ----- upload (click + ADD or drop files anywhere) -----
+async function uploadFiles(files) {
+  if (!files.length) return;
+  const fd = new FormData();
+  for (const f of files) fd.append('files', f);
+  await api('POST', '/api/sounds', fd).catch(() => {});
+  refresh();
+}
+$('fileIn').onchange = (e) => { uploadFiles(e.target.files); e.target.value = ''; };
+document.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); document.body.classList.add('dropping'); } });
+document.addEventListener('dragleave', (e) => { if (!e.relatedTarget) document.body.classList.remove('dropping'); });
+document.addEventListener('drop', (e) => { document.body.classList.remove('dropping'); if (e.dataTransfer.files.length) { e.preventDefault(); uploadFiles(e.dataTransfer.files); } });
+
+// ----- top controls -----
+$('joinLeaveBtn').onclick = async () => { await api('POST', state.voice ? '/api/leave' : '/api/join').catch(() => {}); refresh(); };
+$('stopBtn').onclick = stop;
+async function stop() { await api('POST', '/api/stop'); refresh(); }
+$('master').oninput = (e) => { setFill(e.target); $('masterVal').textContent = Math.round(e.target.value * 100) + '%'; };
+$('master').onchange = (e) => api('PATCH', '/api/settings', { masterVolume: +e.target.value });
+$('editBtn').onclick = () => {
+  editing = !editing;
+  document.body.classList.toggle('editing', editing);
+  $('editBtn').classList.toggle('on', editing);
+  $('editBtn').textContent = editing ? 'Done' : 'Edit';
+  render();
+};
+
+// ----- edit dialog -----
+function paintSwatches(sel) {
+  const box = $('swatches'); box.innerHTML = '';
+  GLOWS.forEach((c) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.style.background = c; b.style.boxShadow = `0 0 8px ${c}`;
+    b.setAttribute('aria-label', 'Glow ' + c);
+    if (c === sel) b.className = 'sel';
+    b.onclick = () => { pendingColor = c; paintSwatches(c); };
+    box.appendChild(b);
+  });
+}
+function openEdit(id) {
+  const s = state.sounds.find((x) => x.id === id);
+  editId = id; pendingKey = undefined; pendingColor = undefined; $('dlg').returnValue = '';
+  $('fName').value = s.name;
+  $('fVol').value = s.volume; setFill($('fVol')); $('fVolVal').textContent = Math.round(s.volume * 100) + '%';
+  $('fKey').textContent = s.hotkey ? `Key: ${s.hotkey}` : 'Set hotkey';
+  paintSwatches(s.color);
+  $('dlg').showModal();
+}
+$('fVol').oninput = (e) => { setFill(e.target); $('fVolVal').textContent = Math.round(e.target.value * 100) + '%'; };
+$('fKey').onclick = () => {
+  $('fKey').textContent = 'Press a key…';
+  startCapture((k) => {
+    if (k === null) { const s = state.sounds.find((x) => x.id === editId); $('fKey').textContent = s.hotkey ? `Key: ${s.hotkey}` : 'Set hotkey'; return; }
+    pendingKey = k; $('fKey').textContent = `Key: ${k}`;
+  });
+};
+$('fKeyClear').onclick = () => { pendingKey = null; $('fKey').textContent = 'Set hotkey'; };
+$('fPreview').onclick = () => {
+  const s = state.sounds.find((x) => x.id === editId);
+  previewAudio?.pause();
+  previewAudio = new Audio('/files/' + s.file); previewAudio.volume = Math.min(1, +$('fVol').value); previewAudio.play();
+};
+$('fDelete').onclick = async () => {
+  if (!window.confirm('Delete this sound?')) return;
+  await api('DELETE', '/api/sounds/' + editId); $('dlg').close(); refresh();
+};
+$('dlg').onclose = async () => {
+  previewAudio?.pause(); endCapture();
+  if ($('dlg').returnValue !== 'save') return;
+  const body = { name: $('fName').value.trim(), volume: +$('fVol').value };
+  if (pendingKey !== undefined) body.hotkey = pendingKey;
+  if (pendingColor !== undefined) body.color = pendingColor;
+  await api('PATCH', '/api/sounds/' + editId, body).catch(() => {});
+  refresh();
+};
+
+// ----- avatars -----
+const BAT_COLORS = ['#8b5cff', '#00e5ff', '#ff3d7f', '#39ff88', '#ffb020', '#ffffff'];
+const BAT_SVG = (c) => `<svg viewBox="0 0 200 120" aria-hidden="true"><g fill="${c}"><path d="M108 44 Q128 34 148 27 Q168 20 193 36 Q179 42 173 60 Q162 51 150 64 Q138 55 126 69 Q116 74 107 80 Z"/><path d="M92 44 Q72 34 52 27 Q32 20 7 36 Q21 42 27 60 Q38 51 50 64 Q62 55 74 69 Q84 74 93 80 Z"/><path d="M90 43 L94 27 L100 39 L106 27 L110 43 Q114 62 108 84 L100 95 L92 84 Q86 62 90 43 Z"/></g><circle cx="96" cy="47" r="3" fill="#0a0814"/><circle cx="104" cy="47" r="3" fill="#0a0814"/></svg>`;
+let avatarBust = Date.now();
+function avatarHTML(profile, size) {
+  const p = profile || {};
+  let inner = BAT_SVG(p.color || '#8b5cff');
+  if (p.avatarFile) inner = `<img src="/avatar?v=${avatarBust}" alt="">`;
+  else if (p.useDiscordAvatar && state.owner?.avatar) inner = `<img src="${esc(state.owner.avatar)}" alt="">`;
+  return `<div class="av" style="width:${size}px;height:${size}px;border-color:${p.color || 'var(--a)'}">${inner}</div>`;
+}
+
+// ----- settings: General + Account -----
+let accDraft = null;
+function showTab(which) {
+  $('paneGeneral').hidden = which !== 'general';
+  $('paneAccount').hidden = which !== 'account';
+  $('tabGeneral').classList.toggle('on', which === 'general');
+  $('tabAccount').classList.toggle('on', which === 'account');
+  if (which === 'account') paintAccount(true);
+}
+function paintAccount(reset) {
+  if (reset || !accDraft) accDraft = { ...(state.profile || { name: '', color: '#8b5cff' }) };
+  if (reset) $('accName').value = accDraft.name || '';
+  $('accAv').innerHTML = avatarHTML(accDraft, 56);
+  const box = $('accBats'); box.innerHTML = '';
+  BAT_COLORS.forEach((c) => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = !accDraft.avatarFile && !accDraft.useDiscordAvatar && accDraft.color === c ? 'sel' : '';
+    b.setAttribute('aria-label', 'Bat avatar ' + c);
+    b.innerHTML = avatarHTML({ color: c }, 40);
+    b.onclick = () => { accDraft.color = c; if (!accDraft.avatarFile) accDraft.useDiscordAvatar = false; paintAccount(); };
+    box.appendChild(b);
+  });
+  $('accUseDiscord').hidden = !state.owner?.avatar;
+  $('accClearPhoto').hidden = !accDraft.avatarFile && !accDraft.useDiscordAvatar;
+  $('ownAv').innerHTML = state.owner?.avatar ? `<div class="av" style="width:44px;height:44px"><img src="${esc(state.owner.avatar)}" alt=""></div>` : avatarHTML(null, 44);
+  $('ownName').textContent = state.owner?.name || (state.ownerId ? 'Discord user ' + state.ownerId : 'Not set');
+  $('botName').textContent = state.bot?.tag || 'Not connected';
+  $('botSub').textContent = state.bot?.online ? `Online · in ${state.bot.servers} server${state.bot.servers === 1 ? '' : 's'}` : 'Offline';
+}
+function openSetup(tab) {
+  $('setupErr').textContent = '';
+  $('follow').checked = !!state.followMe;
+  $('globalKeys').checked = !!state.globalHotkeys?.enabled;
+  $('ownPick').hidden = true; $('botPick').hidden = true; $('sToken').value = ''; $('logoutWipe').checked = false;
+  paintThemes('setThemes');
+  showTab(tab || 'general');
+  $('setupDlg').showModal();
+}
+$('settingsBtn').onclick = () => openSetup('general');
+$('meChip').onclick = () => openSetup('account');
+$('tabGeneral').onclick = () => showTab('general');
+$('tabAccount').onclick = () => showTab('account');
+$('setupCancel').onclick = () => { clearInterval(ownPoll); $('setupDlg').close(); };
+$('setupDlg').addEventListener('cancel', (e) => { if (capturing) e.preventDefault(); clearInterval(ownPoll); });
+$('follow').onchange = (e) => api('PATCH', '/api/settings', { followMe: e.target.checked }).then(refresh);
+$('globalKeys').onchange = (e) => api('PATCH', '/api/settings', { globalHotkeys: e.target.checked }).then(refresh);
+$('stopKeyBtn').onclick = () => {
+  $('stopKeyBtn').textContent = 'Press a key… (Esc clears)';
+  startCapture(async (k) => { await api('PATCH', '/api/settings', { stopHotkey: k }); refresh(); });
+};
+
+// profile
+async function uploadPhoto(file, after) {
+  const fd = new FormData(); fd.append('photo', file);
+  const r = await fetch('/api/profile/photo', { method: 'POST', body: fd });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error);
+  avatarBust = Date.now(); state.profile = j; after?.(j);
+}
+$('accPhoto').onclick = () => $('accPhotoIn').click();
+$('accPhotoIn').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { await uploadPhoto(f, (p) => { accDraft = { ...accDraft, avatarFile: p.avatarFile, useDiscordAvatar: false }; paintAccount(); refresh(); }); }
+  catch (err) { $('setupErr').textContent = err.message; }
+};
+$('accUseDiscord').onclick = () => { accDraft.useDiscordAvatar = true; paintAccount(); };
+$('accClearPhoto').onclick = () => { accDraft.useDiscordAvatar = false; accDraft.clearPhoto = !!accDraft.avatarFile; delete accDraft.avatarFile; paintAccount(); };
+$('accSave').onclick = async () => {
+  $('setupErr').textContent = '';
+  try {
+    const r = await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: $('accName').value, color: accDraft.color, useDiscordAvatar: !!accDraft.useDiscordAvatar, clearPhoto: !!accDraft.clearPhoto }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    delete accDraft.clearPhoto; state.profile = j; avatarBust = Date.now();
+    $('accSave').textContent = 'Saved ✓'; setTimeout(() => { $('accSave').textContent = 'Save profile'; }, 1500);
+    refresh();
+  } catch (err) { $('setupErr').textContent = err.message; }
+};
+
+// switch Discord account
+let ownPoll = null;
+function peopleInto(boxId, waitId, onPick) {
+  return async () => {
+    let people = [];
+    try { people = (await (await fetch('/api/voice-members')).json()).people; } catch {}
+    $(waitId).hidden = people.length > 0;
+    const box = $(boxId); box.innerHTML = '';
+    people.forEach((p) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'person';
+      b.innerHTML = (p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : '<span class="ph"></span>') +
+        `<span>${esc(p.name)}<small>#${esc(p.channel)} · ${esc(p.guild)}</small></span>`;
+      b.onclick = () => onPick(p);
+      box.appendChild(b);
+    });
+  };
+}
+const loadOwnPeople = peopleInto('ownPeople', 'ownWait', async (p) => {
+  try { await api('POST', '/api/owner', { ownerId: p.id }); clearInterval(ownPoll); $('ownPick').hidden = true; await refresh(); paintAccount(); }
+  catch (err) { $('setupErr').textContent = err.message; }
+});
+$('ownSwitch').onclick = () => { $('ownPick').hidden = false; loadOwnPeople(); clearInterval(ownPoll); ownPoll = setInterval(loadOwnPeople, 2000); };
+
+// different bot
+$('botSwitch').onclick = () => { $('botPick').hidden = false; $('sToken').focus(); };
+$('botConnect').onclick = async () => {
+  $('setupErr').textContent = ''; $('botConnect').disabled = true; $('botConnect').textContent = 'Connecting…';
+  try {
+    const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: $('sToken').value }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    $('sToken').value = ''; $('botPick').hidden = true; await refresh(); paintAccount();
+  } catch (err) { $('setupErr').textContent = err.message; }
+  $('botConnect').disabled = false; $('botConnect').textContent = 'Connect';
+};
+
+// log out
+$('logoutBtn').onclick = async () => {
+  const wipe = $('logoutWipe').checked;
+  if (!window.confirm(wipe ? 'Log out and delete all your sounds?' : 'Log out of SoundBat on this PC?')) return;
+  try {
+    await api('POST', '/api/logout', { wipeSounds: wipe });
+    clearInterval(ownPoll); $('setupDlg').close();
+    wzStarted = false; wzStep = null; accDraft = null; wzAcctDone = false;
+    await refresh();
+  } catch (err) { $('setupErr').textContent = err.message; }
+};
+
+// ----- hotkeys -----
+// Key names follow physical keys (e.code) so the panel and the in-game listener agree.
+function keyName(e) {
+  if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return null;
+  let k = e.code;
+  if (/^Key[A-Z]$/.test(k)) k = k.slice(3);
+  else if (/^Digit\d$/.test(k)) k = k.slice(5);
+  else if (k.startsWith('Numpad')) k = k.replace('Numpad', 'Num');
+  return [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', k].filter(Boolean).join('+');
+}
+let captureCb = null;
+function startCapture(cb) {
+  capturing = true; captureCb = cb;
+  api('POST', '/api/capture', { on: true }).catch(() => {}); // pause in-game hotkeys while choosing
+}
+function endCapture() {
+  if (!capturing) return;
+  capturing = false; captureCb = null;
+  api('POST', '/api/capture', { on: false }).catch(() => {});
+}
+const gameKeysActive = () => state.globalHotkeys?.enabled && state.globalHotkeys?.active;
+document.addEventListener('keydown', (e) => {
+  if (capturing) {
+    const k = keyName(e); if (!k) return;
+    e.preventDefault();
+    const cb = captureCb; endCapture();
+    cb(k === 'Escape' ? null : k); return;
+  }
+  if ($('dlg').open || $('setupDlg').open || e.target.matches('input[type=text]')) return;
+  if (e.key === 'Escape') { e.preventDefault(); stop(); return; }
+  if (gameKeysActive()) return; // the app already hears these system-wide
+  const k = keyName(e); if (!k) return;
+  if (k === state.stopHotkey) { e.preventDefault(); stop(); return; }
+  const s = state.sounds.find((x) => x.hotkey === k);
+  if (s) { e.preventDefault(); playSound(s.id); }
+});
+
+
+// ----- first-run welcome -----
+const WZ_ORDER = ['hello', 'account', 'token', 'invite', 'you', 'done'];
+let wzStep = null, wzStarted = false, wzPoll = null;
+function wzShow(step) {
+  if (wzStep === step) return;
+  wzStep = step;
+  $('welcome').hidden = false;
+  document.querySelectorAll('#welcome .wz').forEach((el) => { el.hidden = el.dataset.step !== step; });
+  const idx = WZ_ORDER.indexOf(step);
+  [...$('wzSteps').children].forEach((d, i) => d.classList.toggle('on', i < idx));
+  clearInterval(wzPoll);
+  if (step === 'you') { loadPeople(); wzPoll = setInterval(loadPeople, 2000); }
+  if (step === 'token') setTimeout(() => $('wzToken').focus(), 50);
+  if (step === 'done') { const n = state.profile?.name || state.ownerName; $('wzHello').textContent = n ? `HEY ${n.toUpperCase()}, YOU'RE ` : "YOU'RE "; }
+  if (step === 'account') {
+    wzAcct = { name: state.profile?.name || '', color: state.profile?.color || '#8b5cff', avatarFile: state.profile?.avatarFile };
+    $('wzName').value = wzAcct.name;
+    $('wzAcctTitle').textContent = (state.hasToken && state.ownerId ? '' : '1 · ') + 'Make your SoundBat account';
+    paintWzAcct(); paintThemes('wzThemes');
+    setTimeout(() => $('wzName').focus(), 50);
+  }
+}
+function wzUpdate() {
+  if (!state.needsSetup && wzStep !== 'done') { if (wzStep) { $('welcome').hidden = true; wzStep = null; } return; }
+  if (wzStep === 'done') return;
+  const returning = state.hasToken && state.ownerId; // already connected, just needs an account
+  if (!wzStarted && !returning) return wzShow('hello');
+  if (!state.profile || (wzStep === 'account' && !wzAcctDone)) return wzShow('account');
+  if (!state.hasToken || !state.bot?.online) return wzShow('token');
+  if (!state.bot.servers) return wzShow('invite');
+  if (wzStep === 'invite') window.appWindow?.focus?.(); // bat just joined your server — pop back to the front
+  if (!state.ownerId) return wzShow('you');
+}
+$('wzStart').onclick = () => { wzStarted = true; wzUpdate(); };
+
+// account step
+let wzAcct = { name: '', color: '#8b5cff' }, wzAcctDone = false;
+function paintWzAcct() {
+  $('wzAv').innerHTML = avatarHTML(wzAcct, 96);
+  const box = $('wzBats'); box.innerHTML = '';
+  BAT_COLORS.forEach((c) => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = !wzAcct.avatarFile && wzAcct.color === c ? 'sel' : '';
+    b.setAttribute('aria-label', 'Bat avatar ' + c);
+    b.innerHTML = avatarHTML({ color: c }, 46);
+    b.onclick = () => { wzAcct.color = c; if (wzAcct.avatarFile) { wzAcct.clearPhoto = true; delete wzAcct.avatarFile; } paintWzAcct(); };
+    box.appendChild(b);
+  });
+}
+$('wzPhoto').onclick = () => $('wzPhotoIn').click();
+$('wzPhotoIn').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  $('wzAcctErr').textContent = '';
+  try { await uploadPhoto(f, (p) => { wzAcct.avatarFile = p.avatarFile; delete wzAcct.clearPhoto; paintWzAcct(); }); }
+  catch (err) { $('wzAcctErr').textContent = err.message; }
+};
+$('wzAcctBtn').onclick = async () => {
+  $('wzAcctErr').textContent = '';
+  try {
+    const r = await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: $('wzName').value, color: wzAcct.color, clearPhoto: !!wzAcct.clearPhoto }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    state.profile = j; wzStarted = true; wzAcctDone = true;
+    await refresh();
+    if (!state.needsSetup) wzShow('done'); else wzUpdate();
+  } catch (err) { $('wzAcctErr').textContent = err.message; }
+};
+$('wzName').onkeydown = (e) => { if (e.key === 'Enter') $('wzAcctBtn').click(); };
+$('wzTokenBtn').onclick = async () => {
+  const token = $('wzToken').value.trim();
+  if (!token) { $('wzTokenErr').textContent = 'Paste the token first'; return; }
+  $('wzTokenBtn').disabled = true; $('wzTokenBtn').textContent = 'Connecting…'; $('wzTokenErr').textContent = '';
+  try {
+    const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    $('wzToken').value = '';
+    await refresh();
+    if (state.bot?.inviteUrl && !state.bot.servers) window.open(state.bot.inviteUrl, '_blank'); // straight to "add to server"
+  } catch (e) { $('wzTokenErr').textContent = e.message; }
+  $('wzTokenBtn').disabled = false; $('wzTokenBtn').textContent = 'Connect';
+};
+// When you come back from Discord with the token copied, grab it automatically
+let wzTriedClip = '';
+async function wzTryClipboard() {
+  if (wzStep !== 'token' || !window.appWindow?.clipToken || $('wzTokenBtn').disabled) return;
+  const t = await window.appWindow.clipToken().catch(() => null);
+  if (!t || t === wzTriedClip) return;
+  wzTriedClip = t;
+  $('wzToken').value = t;
+  $('wzTokenBtn').click();
+}
+window.addEventListener('focus', wzTryClipboard);
+setInterval(wzTryClipboard, 2000);
+$('wzToken').onkeydown = (e) => { if (e.key === 'Enter') $('wzTokenBtn').click(); };
+$('wzInvite').onclick = () => { if (state.bot?.inviteUrl) window.open(state.bot.inviteUrl, '_blank'); };
+async function loadPeople() {
+  let people = [];
+  try { people = (await (await fetch('/api/voice-members')).json()).people; } catch {}
+  $('wzPeopleWait').hidden = people.length > 0;
+  const box = $('wzPeople'); box.innerHTML = '';
+  people.forEach((p) => {
+    const b = document.createElement('button'); b.className = 'person';
+    b.innerHTML = (p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : '<span class="ph"></span>') +
+      `<span>${esc(p.name)}<small>#${esc(p.channel)} · ${esc(p.guild)}</small></span>`;
+    b.onclick = () => saveOwner(p.id);
+    box.appendChild(b);
+  });
+}
+async function saveOwner(id) {
+  $('wzOwnerErr').textContent = '';
+  try {
+    const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownerId: id }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    wzShow('done'); refresh();
+  } catch (e) { $('wzOwnerErr').textContent = e.message; }
+}
+$('wzManual').onclick = () => { $('wzManualBox').hidden = false; $('wzOwner').focus(); };
+$('wzOwnerBtn').onclick = () => saveOwner($('wzOwner').value.trim());
+$('wzFinish').onclick = () => { $('welcome').hidden = true; wzStep = null; clearInterval(wzPoll); };
+
+refresh();
+setInterval(refresh, 1500);
+</script>
+</body>
+</html>
