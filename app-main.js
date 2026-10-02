@@ -1,13 +1,17 @@
 // SoundBat desktop app: splash screen, then the soundboard (bot + panel + in-game hotkeys) in its own window.
+// Lives in the tray when closed so in-game hotkeys keep working.
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, shell, Menu, ipcMain, clipboard } = require('electron');
+const { app, BrowserWindow, shell, Menu, ipcMain, clipboard, Tray, nativeImage, screen, Notification } = require('electron');
 
 // Keep using the original data folder so sounds/settings carry over from "Soundboard"
 app.setPath('userData', path.join(app.getPath('appData'), 'Soundboard'));
-if (!app.requestSingleInstanceLock()) app.quit();
+// Only one SoundBat at a time — a second copy would log the same bot in twice
+if (!app.requestSingleInstanceLock()) { app.exit(0); return; }
 
 const ICON = path.join(__dirname, 'icon.png');
+try { app.setAppUserModelId('com.akram.soundbat'); } catch {} // lets Windows show SoundBat's notifications
+const HIDDEN = process.argv.includes('--hidden'); // started with Windows: go straight to the tray
 
 // Small run log next to the code (helps diagnose updates): resources/app-update/last-run.log
 const RUN_LOG = path.join(__dirname, 'last-run.log');
@@ -21,6 +25,25 @@ process.on('unhandledRejection', (e) => runLog('unhandled', e && e.stack || e));
 const INTRO_MS = 2600; // splash intro length before it can hand off
 let win = null;
 let splash = null;
+let tray = null;
+let quitting = false;
+let soundboard = null; // index.js exports
+let trayHintShown = false;
+
+// Remember where the window was
+const BOUNDS_FILE = path.join(app.getPath('userData'), 'window.json');
+function loadBounds() {
+  try {
+    const b = JSON.parse(fs.readFileSync(BOUNDS_FILE, 'utf8'));
+    const onScreen = screen.getAllDisplays().some(({ workArea: w }) =>
+      b.x < w.x + w.width - 80 && b.x + b.width > w.x + 80 && b.y >= w.y - 10 && b.y < w.y + w.height - 60);
+    return onScreen ? b : { width: b.width, height: b.height };
+  } catch { return {}; }
+}
+function saveBounds() {
+  if (!win || win.isMinimized() || win.isMaximized()) return;
+  try { fs.writeFileSync(BOUNDS_FILE, JSON.stringify(win.getBounds())); } catch {}
+}
 
 function createSplash() {
   splash = new BrowserWindow({
@@ -37,24 +60,53 @@ function createSplash() {
   splash.on('closed', () => { splash = null; });
 }
 
+function showWindow() {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show(); win.focus();
+}
+
+function createTray() {
+  try {
+    tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));
+    tray.setToolTip('SoundBat');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Open SoundBat', click: showWindow },
+      { label: 'Stop all sounds', click: () => soundboard?.stopAll() },
+      { type: 'separator' },
+      { label: 'Quit SoundBat', click: () => { quitting = true; app.quit(); } },
+    ]));
+    tray.on('click', showWindow);
+  } catch (e) { runLog('tray failed', e && e.message); tray = null; }
+}
+
+function applyLoginItem(db) {
+  if (!app.isPackaged) return;
+  try { app.setLoginItemSettings({ openAtLogin: !!db.openAtLogin, args: ['--hidden'] }); } catch (e) { runLog('login item failed', e.message); }
+}
+
 app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
-  createSplash();
+  if (!HIDDEN) createSplash();
   const started = Date.now();
 
   // Let the splash paint before loading the heavy bot/server code
   await new Promise((r) => setTimeout(r, 300));
   process.env.SOUNDBOARD_DATA = path.join(app.getPath('userData'), 'data');
   let port;
-  try { port = await require('./index.js').ready; runLog('server on port', port); }
+  try { soundboard = require('./index.js'); port = await soundboard.ready; runLog('server on port', port, 'code', soundboard.version); }
   catch (e) { runLog('server failed', e && e.stack || e); throw e; }
+
+  createTray();
+  applyLoginItem(soundboard.settings());
+  soundboard.events.on('settings', applyLoginItem);
 
   win = new BrowserWindow({
     width: 940,
     height: 600,
+    ...loadBounds(),
     minWidth: 520,
     minHeight: 420,
-    center: true,
     show: false,
     title: 'SoundBat',
     icon: ICON,
@@ -67,9 +119,27 @@ app.whenReady().then(async () => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url); // invite / portal links open in your browser
     return { action: 'deny' };
   });
+  // Links inside the panel never navigate the app window away
+  win.webContents.on('will-navigate', (e, url) => {
+    if (!url.startsWith(`http://localhost:${port}`)) { e.preventDefault(); if (/^https?:\/\//.test(url)) shell.openExternal(url); }
+  });
+  win.on('resize', saveBounds);
+  win.on('move', saveBounds);
+  win.on('close', (e) => {
+    // Closing hides to the tray (hotkeys keep working) unless you turned that off or chose Quit
+    if (!quitting && tray && soundboard?.settings().closeToTray) {
+      e.preventDefault();
+      win.hide();
+      if (!trayHintShown && Notification.isSupported()) {
+        trayHintShown = true;
+        new Notification({ title: 'SoundBat is still running', body: 'Your hotkeys still work. Right-click the bat in the tray to quit.', icon: ICON, silent: true }).show();
+      }
+    }
+  });
   win.on('closed', () => { win = null; });
 
   await new Promise((r) => win.once('ready-to-show', r));
+  if (HIDDEN) { setTimeout(() => splash?.close(), 0); return; }
   const left = INTRO_MS - (Date.now() - started);
   if (left > 0) await new Promise((r) => setTimeout(r, left));
 
@@ -90,14 +160,15 @@ ipcMain.handle('setup:clip-token', () => {
 
 ipcMain.on('win', (_e, action) => {
   if (!win) return;
-  if (action === 'focus') { if (win.isMinimized()) win.restore(); win.show(); win.focus(); win.setAlwaysOnTop(true); setTimeout(() => win?.setAlwaysOnTop(false), 300); }
+  if (action === 'focus') { showWindow(); win.setAlwaysOnTop(true); setTimeout(() => win?.setAlwaysOnTop(false), 300); }
   if (action === 'minimize') win.minimize();
   if (action === 'maximize') win.isMaximized() ? win.unmaximize() : win.maximize();
   if (action === 'close') win.close();
+  if (action === 'quit') { quitting = true; app.quit(); }
 });
 
 // Restart button in the panel (used after an update lands)
-ipcMain.on('app:restart', () => { app.relaunch(); app.exit(0); });
+ipcMain.on('app:restart', () => { app.relaunch({ args: process.argv.slice(1).filter((a) => a !== '--hidden') }); app.exit(0); });
 
 // Watch for updated code dropped into resources/app-update and tell the panel
 function watchForUpdates() {
@@ -105,7 +176,9 @@ function watchForUpdates() {
   if (!dir) return;
   let timer = null;
   try {
-    fs.watch(dir, { recursive: true }, () => {
+    fs.watch(dir, { recursive: true }, (_ev, file) => {
+      // our own log file changes all the time — that's not an update
+      if (!file || /last-run\.log$|\.tmp$/.test(String(file))) return;
       clearTimeout(timer);
       timer = setTimeout(() => win?.webContents.send('app:update-ready'), 1500);
     });
@@ -113,8 +186,6 @@ function watchForUpdates() {
 }
 app.whenReady().then(() => setTimeout(watchForUpdates, 5000));
 
-app.on('second-instance', () => {
-  if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
-});
-
+app.on('second-instance', () => showWindow());
+app.on('before-quit', () => { quitting = true; });
 app.on('window-all-closed', () => app.quit());

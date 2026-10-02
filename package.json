@@ -1,13 +1,15 @@
 {
   "name": "soundboard",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "SoundBat \u2014 neon soundboard that plays into your Discord call",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "node --env-file=.env index.js",
     "app": "electron .",
-    "dist": "electron-builder --win portable --x64"
+    "dist": "electron-builder --win portable --x64",
+    "test": "node --test tests/audio.test.js tests/api.test.js tests/hotkeys.test.js",
+    "test:ui": "node --test tests/ui.test.js"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -34,6 +36,7 @@
       "splash.html",
       "preload.js",
       "index.js",
+      "audio.js",
       "public/**",
       "starter/**",
       "package.json",
