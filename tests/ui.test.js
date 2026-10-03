@@ -19,7 +19,7 @@ let proc, base, browser, page, errors = [], DATA;
 test.before(async () => {
   DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'sbui-'));
   // A profile + owner so the app is past the welcome screens except for the bot token
-  fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify({ ownerId: '441563277697220631', profile: { name: 'Akram', color: '#8b5cff' } }));
+  fs.writeFileSync(path.join(DATA, 'config.json'), JSON.stringify({ ownerId: '123456789012345678', profile: { name: 'Tester', color: '#8b5cff' } }));
   const port = 20000 + Math.floor(Math.random() * 20000);
   proc = spawn(process.execPath, ['-e', "require('./index.js').ready.then((p) => console.log('PORT=' + p))"], {
     cwd: ROOT, env: { ...process.env, SOUNDBOARD_DATA: DATA, PORT: String(port), DISABLE_GAME_HOTKEYS: 'true', SOUNDBAT_NO_UPDATE_CHECK: 'true' } });

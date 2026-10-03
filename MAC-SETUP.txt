@@ -1,0 +1,45 @@
+SoundBat on a Mac: setup
+========================
+
+You only do steps 1 to 4 once. It takes about 10 minutes.
+
+1. Install Node.js
+   Go to https://nodejs.org, download the "LTS" macOS installer (version 22 or newer) and run it.
+   On an Apple Silicon Mac (M1/M2/M3/M4), pick the ARM64 installer, not x64. Step 4 stops and tells
+   you if the wrong one is installed.
+
+2. Open the SoundBat folder in Terminal
+   Unzip SoundBat-1.3-mac-source.zip (double-click it). Open the Terminal app,
+   type "cd " (with a space after it), drag the unzipped SoundBat folder onto the Terminal window, and press Return.
+
+3. Install SoundBat's parts
+   Type this and press Return (it downloads for a few minutes):
+
+     npm install
+
+4. Make it a normal Mac app
+   Type this and press Return:
+
+     npm run dist:mac
+
+   When it finishes, open the "dist" folder inside the SoundBat folder. Inside "mac-arm64" (newer Macs)
+   or "mac" (older Intel Macs) is SoundBat.app. Drag it into your Applications folder and open it from there.
+   If macOS says it can't check the app, open System Settings > Privacy & Security, scroll down and
+   click "Open Anyway" next to SoundBat (on older macOS: right-click SoundBat > Open > Open).
+   You only need to do that the first time.
+
+   (Just want to try it first? Run "npm run app" in step 4 instead. It starts SoundBat straight from Terminal.)
+
+5. Turn on in-game hotkeys
+   Hotkeys need permission to see your keyboard. Open System Settings > Privacy & Security, then
+   switch SoundBat on under both "Accessibility" and "Input Monitoring". If you used "npm run app",
+   switch on "Terminal" instead. Then quit and reopen SoundBat.
+   Use Ctrl, Alt (Option) or Shift combos, or F-keys. The Cmd key isn't used for SoundBat hotkeys.
+
+Good to know
+- The first-run wizard walks you through making your own Discord bot.
+- If macOS asks to use your keychain, click "Always Allow". That's where your bot token is stored, encrypted.
+- If you turn on the phone remote and macOS asks about incoming connections, click "Allow".
+- Your sounds and settings live in ~/Library/Application Support/Soundboard
+- When you close the window, SoundBat keeps running in the menu bar (the bat icon) so hotkeys keep working.
+  Click the Dock icon to bring the window back, or use the bat menu > Quit SoundBat.

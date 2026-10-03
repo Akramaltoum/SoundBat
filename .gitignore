@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+last-run.log
+sounds/
+cache/
+config.json
+sounds.json
+*.tmp

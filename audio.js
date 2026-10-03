@@ -197,12 +197,57 @@ function loadOpus() {
   throw new Error('Opus encoder missing — reinstall SoundBat');
 }
 
+// Load the encoder and run the mixer once ahead of time so the first hotkey press doesn't pay for it (~130 ms)
+function warmUp(OpusScript) {
+  const m = new Mixer({ OpusScript });
+  m.add(new BufferTrack({ id: null, pcm: Buffer.alloc(FRAME_BYTES * 3), volume: () => 1 }));
+  for (let i = 0; i < 3; i++) { m.mixFrame(); m.encoder.encode(m.out, FRAME_SAMPLES); }
+  m.destroy();
+}
+
+// ---------- even packet timing (Windows) ----------
+// The voice library paces packets with setTimeout. On Windows' default 15.6 ms timer tick its 20 ms
+// clock fires at 16 / 32 ms, and everyone listening then buffers our audio longer to smooth that out.
+// Asking Windows for a 1 ms tick while a sound plays keeps packets evenly spaced.
+// Windows 11 ignores that request (and may put us in efficiency mode) once our window is hidden in the
+// tray or behind a game, so we also opt out of power throttling for this process.
+let winmm;
+function preciseTimers(on) {
+  if (process.platform !== 'win32' || winmm === null) return false;
+  try {
+    if (!winmm) {
+      const koffi = require('koffi');
+      const lib = koffi.load('winmm.dll');
+      winmm = { begin: lib.func('uint32 __stdcall timeBeginPeriod(uint32)'), end: lib.func('uint32 __stdcall timeEndPeriod(uint32)'), on: false };
+      noPowerThrottling(koffi);
+    }
+    if (!!on !== winmm.on) { (on ? winmm.begin : winmm.end)(1); winmm.on = !!on; }
+    return true;
+  } catch (e) { winmm = null; console.error('Precise timers unavailable:', e.message); return false; }
+}
+
+// SetProcessInformation(ProcessPowerThrottling): keep full speed (no EcoQoS) and keep honouring our
+// timer resolution while hidden. Older Windows 10 builds don't know the timer flag, so fall back to speed only.
+function noPowerThrottling(koffi) {
+  try {
+    const State = koffi.struct('SB_POWER_THROTTLING_STATE', { Version: 'uint32', ControlMask: 'uint32', StateMask: 'uint32' });
+    const k32 = koffi.load('kernel32.dll');
+    const current = k32.func('void * __stdcall GetCurrentProcess()');
+    const setInfo = k32.func('int __stdcall SetProcessInformation(void *, int, const SB_POWER_THROTTLING_STATE *, uint32)');
+    const EXECUTION_SPEED = 0x1, IGNORE_TIMER_RESOLUTION = 0x4, ProcessPowerThrottling = 4;
+    for (const mask of [EXECUTION_SPEED | IGNORE_TIMER_RESOLUTION, EXECUTION_SPEED]) {
+      if (setInfo(current(), ProcessPowerThrottling, { Version: 1, ControlMask: mask, StateMask: 0 }, koffi.sizeof(State))) return mask;
+    }
+  } catch (e) { console.error('Power throttling opt-out unavailable:', e.message); }
+  return 0;
+}
+
 // ---------- mixer ----------
-// An object-mode stream of Opus packets. It keeps at most one packet buffered, so anything
-// added or changed shows up in the call on the next 20 ms frame.
+// An object-mode stream of Opus packets. Nothing is mixed ahead: each frame is mixed when the
+// voice player asks for it, so anything added or changed shows up in the very next 20 ms frame.
 class Mixer extends Readable {
   constructor({ OpusScript, onTrackEnd } = {}) {
-    super({ objectMode: true, highWaterMark: 1 });
+    super({ objectMode: true, highWaterMark: 0 });
     const Opus = OpusScript || loadOpus();
     this.encoder = new Opus(RATE, CHANNELS, Opus.Application.AUDIO);
     this.tracks = [];
@@ -268,4 +313,5 @@ class Mixer extends Readable {
 module.exports = {
   RATE, CHANNELS, BYTES_PER_SEC, FRAME_BYTES, MAX_CACHE_SEC, MAX_TRACKS,
   analyze, measure, levelGain, waveform, secToBytes, PcmCache, BufferTrack, StreamTrack, Mixer, runFfmpeg,
+  warmUp, preciseTimers,
 };
