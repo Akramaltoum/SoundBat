@@ -214,6 +214,71 @@
     .pad { height:92px; } .search { width:100%; order:3; } .search:focus { width:100%; }
     .where { max-width:52vw; }
   }
+
+  /* ----- view tabs: Soundboard | Voice Lab ----- */
+  .views { flex:none; display:flex; gap:4px; padding:0 18px; margin-bottom:12px; border-bottom:1px solid var(--line); }
+  .views button { position:relative; height:34px; padding:0 14px; border:0; background:none; color:var(--dim); font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+  .views button:hover { color:#fff; }
+  .views button.on { color:#fff; }
+  .views button.on::after { content:''; position:absolute; left:10px; right:10px; bottom:-1px; height:2px; background:var(--a); box-shadow:0 0 10px var(--a); }
+  .views .ai { margin-left:6px; padding:1px 5px; border-radius:4px; font-size:9px; letter-spacing:.1em; color:#0a0814; background:var(--b); box-shadow:0 0 8px color-mix(in srgb, var(--b) 60%, transparent); vertical-align:2px; }
+  body.remote .views { display:none; }
+  body.lab-on #tools, body.lab-on main { display:none; }
+  #lab { flex:1; min-height:0; overflow-y:auto; padding:2px 18px 16px; }
+  #lab[hidden] { display:none; }
+  #lab::-webkit-scrollbar { width:8px; } #lab::-webkit-scrollbar-thumb { background:var(--line2); border-radius:4px; }
+
+  /* ----- Voice Lab ----- */
+  .labGrid { display:grid; grid-template-columns:minmax(0, 1.15fr) minmax(0, 1fr); gap:16px; align-items:start; }
+  @media (max-width:760px) { .labGrid { grid-template-columns:1fr; } }
+  .labForm { display:flex; flex-direction:column; gap:14px; }
+  .labForm label { display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .labForm .label b { color:var(--soft); letter-spacing:.04em; margin-left:4px; }
+  .labRow { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .lab select, .lab input[type=text] { font:inherit; font-size:13px; height:34px; padding:0 8px; border-radius:6px; border:1px solid var(--line2); background:var(--panel); color:var(--text); min-width:0; width:100%; }
+  .lab select:focus, .lab input[type=text]:focus { outline:none; border-color:var(--a); }
+  .lab input[type=range] { flex:none; width:100%; margin:8px 0 6px; }
+  .labText { position:relative; border:1px solid var(--line2); border-radius:8px; background:var(--panel); transition:border-color .12s, box-shadow .12s; }
+  .labText:focus-within { border-color:var(--a); box-shadow:0 0 14px rgba(139,92,255,.35); }
+  .labText textarea { display:block; width:100%; min-height:96px; resize:vertical; border:0; outline:none; background:transparent; color:#fff; font:inherit; font-size:16px; line-height:1.4; padding:12px 12px 4px; user-select:text; }
+  .labText textarea::placeholder { color:#5d5491; }
+  .labTextBar { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 8px 8px 12px; font-size:11px; color:var(--dim); }
+  .labTextBar .tips { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .labTextBar .tips { min-width:0; flex:1; }
+  .labTextBar .row { flex:none; }
+  #labCount, #labSurprise { white-space:nowrap; }
+  .labForm label[hidden] { display:none; }
+  .fxChips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .fxChips button { height:28px; padding:0 10px; border-radius:14px; border:1px solid var(--line2); background:transparent; color:var(--soft); font-size:12px; font-weight:600; }
+  .fxChips button:hover { border-color:var(--a); color:#fff; }
+  .fxChips button.on { background:var(--b); border-color:var(--b); color:#0a0814; box-shadow:0 0 10px color-mix(in srgb, var(--b) 55%, transparent); }
+  #labGo { height:46px; font-size:14px; display:flex; align-items:center; justify-content:center; gap:10px; }
+  #labGo small { font-size:10px; opacity:.6; letter-spacing:.06em; }
+  #labGo:disabled { opacity:.55; cursor:default; box-shadow:none; }
+  .labEngine { margin-bottom:14px; }
+  .labEngine[hidden] { display:none; }
+  .labEngine p { margin:0; color:var(--soft); font-size:13px; line-height:1.5; }
+  .labEngine b { color:#fff; }
+  .meter { height:6px; border-radius:3px; background:#1d1640; overflow:hidden; }
+  .meter i { display:block; height:100%; width:0; background:linear-gradient(90deg, var(--a), var(--b)); box-shadow:0 0 10px var(--b); transition:width .25s; }
+  .labTakes { display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .takeList { display:flex; flex-direction:column; gap:8px; }
+  .takesEmpty { border:1px dashed var(--line2); border-radius:8px; padding:22px 16px; line-height:1.5; }
+  .take { display:grid; grid-template-columns:auto minmax(0, 1fr); gap:10px; padding:10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+  .take.fresh { border-color:var(--a); box-shadow:0 0 14px rgba(139,92,255,.3); }
+  .take .tplay { width:38px; height:38px; border-radius:50%; border:1px solid var(--a); background:transparent; color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .take .tplay:hover, .take .tplay.on { background:var(--a); color:#0a0814; box-shadow:0 0 12px var(--a); }
+  .take .ttext { color:#fff; font-size:13px; line-height:1.35; cursor:pointer; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
+  .take .ttext:hover { color:var(--b); }
+  .take .tmeta { color:var(--dim); font-size:11px; margin-top:3px; letter-spacing:.03em; }
+  .take .tbtns { grid-column:2; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .take .tbtns .x { margin-left:auto; border:0; background:none; color:var(--dim); font-size:14px; padding:4px 6px; }
+  .take .tbtns .x:hover { color:var(--hot); }
+  .take .tsave { grid-column:1 / -1; display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 110px) auto auto; gap:6px; }
+  .take .tsave[hidden] { display:none; }
+  .take .saved { color:var(--ok); font-size:12px; font-weight:700; letter-spacing:.06em; }
+  .labBusy { display:inline-block; width:12px; height:12px; border-radius:50%; border:2px solid #0a0814; border-right-color:transparent; animation:spinr .8s linear infinite; }
+  @keyframes spinr { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -379,6 +444,11 @@
   </div>
 </div>
 
+<nav class="views" id="views">
+  <button type="button" id="viewBoard" class="on">Soundboard</button>
+  <button type="button" id="viewLab">Voice Lab<span class="ai">AI</span></button>
+</nav>
+
 <div class="tools" id="tools">
   <div class="boards" id="boards"></div>
   <input type="search" class="search" id="search" placeholder="Search sounds" aria-label="Search sounds" autocomplete="off" spellcheck="false">
@@ -399,6 +469,44 @@
 <main>
   <div class="grid" id="grid"></div>
 </main>
+<section id="lab" class="lab" hidden>
+  <div class="card labEngine" id="labEngine" hidden>
+    <div class="head"><div><b>Turn anything you type into a sound</b><small>One-time setup</small></div></div>
+    <p id="labEngineText">Voice Lab needs its AI voice engine — a one-time <b id="labEngineSize">90 MB</b> download. After that it runs on your PC: no account, no limits, works offline.</p>
+    <div class="meter" id="labMeter" hidden><i id="labMeterBar"></i></div>
+    <div class="row"><button type="button" class="btn solid" id="labDownload">Download voice engine</button><span class="muted" id="labEngineNote" style="color:var(--dim);font-size:12px"></span></div>
+  </div>
+  <div class="labGrid">
+    <div class="labForm">
+      <div class="labText">
+        <textarea id="labText" maxlength="1000" spellcheck="false" placeholder="Type anything… “Ladies and gentlemen… we got him.”"></textarea>
+        <div class="labTextBar">
+          <span class="tips">Tip: <b>!</b> and CAPS add punch · <b>…</b> or commas add pauses</span>
+          <span class="row" style="gap:10px"><span id="labCount">0 / 1000</span><button type="button" class="btn sm" id="labSurprise" title="Random line, voice and effect">Surprise me</button></span>
+        </div>
+      </div>
+      <div class="labRow">
+        <label><span class="label">Voice</span><select id="labVoice"></select></label>
+        <label><span class="label">Mix with</span><select id="labBlend"><option value="">No one</option></select></label>
+      </div>
+      <label id="labMixRow" hidden><span class="label">Mix <b id="labMixVal"></b></span><input type="range" id="labMix" min="0.1" max="0.9" step="0.05" value="0.4"></label>
+      <div class="labRow">
+        <label><span class="label">Speed <b id="labSpeedVal"></b></span><input type="range" id="labSpeed" min="0.5" max="2" step="0.05" value="1"></label>
+        <label><span class="label">Pitch <b id="labPitchVal"></b></span><input type="range" id="labPitch" min="-12" max="12" step="1" value="0"></label>
+      </div>
+      <div><div class="label">Effect</div><div class="fxChips" id="labFx"></div></div>
+      <div class="labRow">
+        <label><span class="label">Sound before</span><select id="labBefore"></select></label>
+        <label><span class="label">Sound after</span><select id="labAfter"></select></label>
+      </div>
+      <button type="button" class="btn solid" id="labGo">Generate <small>Ctrl+Enter</small></button>
+    </div>
+    <div class="labTakes">
+      <div class="label">Takes</div>
+      <div class="takeList" id="labTakes"><div class="takesEmpty">Your clips show up here. Preview them, play them straight into the call, or save the keepers to your board.<br>Click a take's text to load its settings back.</div></div>
+    </div>
+  </div>
+</section>
 <input type="file" id="fileIn" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm,.flac,.aac,.opus" multiple hidden>
 
 <footer>
@@ -707,6 +815,7 @@ function render() {
   renderBoards();
   renderGrid();
   paintProgress();
+  paintView();
 }
 
 function renderBoards() {
@@ -1249,8 +1358,8 @@ document.addEventListener('keydown', (e) => {
     const cb = captureCb; endCapture();
     cb(k === 'Escape' ? null : k); return;
   }
-  const typing = e.target.matches('input[type=text], input[type=search], select');
-  if (!typing && !$('dlg').open && !$('setupDlg').open && ((e.ctrlKey && e.code === 'KeyF') || (e.key === '/' && !e.ctrlKey))) { e.preventDefault(); $('search').focus(); $('search').select(); return; }
+  const typing = e.target.matches('input[type=text], input[type=search], select, textarea');
+  if (!typing && view !== 'lab' && !$('dlg').open && !$('setupDlg').open && ((e.ctrlKey && e.code === 'KeyF') || (e.key === '/' && !e.ctrlKey))) { e.preventDefault(); $('search').focus(); $('search').select(); return; }
   if ($('dlg').open || $('setupDlg').open || $('addDlg').open || $('nameDlg').open || typing) return;
   if (e.key === 'Escape') { e.preventDefault(); stop(); return; }
   if (gameKeysActive()) return; // the app already hears these system-wide
@@ -1381,6 +1490,238 @@ async function saveOwner(id) {
 $('wzManual').onclick = () => { $('wzManualBox').hidden = false; $('wzOwner').focus(); };
 $('wzOwnerBtn').onclick = () => saveOwner($('wzOwner').value.trim());
 $('wzFinish').onclick = () => { $('welcome').hidden = true; wzStep = null; clearInterval(wzPoll); };
+
+// ----- view tabs: Soundboard | Voice Lab -----
+let view = store.get('sb.view') === 'lab' ? 'lab' : 'board';
+function setView(v) {
+  view = v; store.set('sb.view', v);
+  if (v === 'lab') { labInit(); setTimeout(() => $('labText').focus(), 30); }
+  paintView();
+}
+function paintView() {
+  const lab = view === 'lab' && !state.remote;
+  document.body.classList.toggle('lab-on', lab);
+  $('lab').hidden = !lab;
+  $('viewBoard').classList.toggle('on', !lab);
+  $('viewLab').classList.toggle('on', lab);
+  if (lab) { if (!lab.inited) labInit(); labPaint(); }
+}
+$('viewBoard').onclick = () => setView('board');
+$('viewLab').onclick = () => setView('lab');
+
+// ----- Voice Lab: type anything, get an AI voice clip, save it to the board -----
+const LINES = [
+  'Ladies and gentlemen… we got him.', 'Bro really thought he did something.', 'Skill issue.', 'Who let him cook?',
+  'Task failed successfully.', "That's crazy. Anyway.", 'Respectfully… no.', 'Please clap.', 'Okay. Who threw?',
+  'And the award for worst play of the night goes to… you!', 'Reload! RELOAD!', 'You have been visited by the bat.',
+  'Certified bruh moment.', 'I am once again asking you to stop.', 'Calculated.', 'Nobody saw that. Nobody.',
+  'Wow. Just wow.', 'Plot twist!', 'Emotional damage!', 'He is NOT him.', 'Me? Lagging? Never.', 'Mission accomplished… sort of.',
+  "It's free real estate.", 'Ten out of ten. No notes.', 'Back to the lobby we go.', 'Absolutely cinematic.',
+];
+const lab = { info: null, takes: [], busy: false, fresh: null, fx: store.get('sb.lab.fx') || 'none', inited: false, audio: null, playingTake: null };
+const labOpts = (() => { try { return JSON.parse(store.get('sb.lab') || '{}'); } catch { return {}; } })();
+const saveLabOpts = () => store.set('sb.lab', JSON.stringify({
+  voice: $('labVoice').value, blend: $('labBlend').value, mix: $('labMix').value, speed: $('labSpeed').value, pitch: $('labPitch').value,
+}));
+
+async function labInit() {
+  if (lab.inited) return;
+  lab.inited = true;
+  try { lab.info = await (await fetch('/api/voicelab')).json(); }
+  catch { lab.inited = false; return; }
+  const groups = [['US', 'F', 'American · female'], ['US', 'M', 'American · male'], ['UK', 'F', 'British · female'], ['UK', 'M', 'British · male']];
+  const opts = groups.map(([a, g, label]) => `<optgroup label="${label}">` +
+    lab.info.voices.filter((v) => v.accent === a && v.gender === g).map((v) => `<option value="${v.id}">${esc(v.name)}</option>`).join('') + '</optgroup>').join('');
+  $('labVoice').innerHTML = opts;
+  $('labBlend').innerHTML = '<option value="">No one</option>' + opts;
+  $('labVoice').value = labOpts.voice || 'am_michael';
+  $('labBlend').value = labOpts.blend || '';
+  $('labMix').value = labOpts.mix || 0.4;
+  $('labSpeed').value = labOpts.speed || 1;
+  $('labPitch').value = labOpts.pitch || 0;
+  $('labText').maxLength = lab.info.maxText;
+  const fx = $('labFx'); fx.innerHTML = '';
+  lab.info.effects.forEach((e) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = e.name; b.dataset.id = e.id;
+    b.onclick = () => { lab.fx = e.id; store.set('sb.lab.fx', e.id); labPaintFx(); };
+    fx.appendChild(b);
+  });
+  if (!lab.info.effects.some((e) => e.id === lab.fx)) lab.fx = 'none';
+  labPaintFx(); labPaintSliders(); labPaint();
+}
+function labPaintFx() { [...$('labFx').children].forEach((b) => b.classList.toggle('on', b.dataset.id === lab.fx)); }
+function labPaintSliders() {
+  ['labMix', 'labSpeed', 'labPitch'].forEach((id) => setFill($(id)));
+  const p = +$('labPitch').value;
+  $('labSpeedVal').textContent = (+$('labSpeed').value).toFixed(2).replace(/0$/, '') + '×';
+  $('labPitchVal').textContent = p === 0 ? 'normal' : (p > 0 ? '+' : '') + p;
+  $('labMixRow').hidden = !$('labBlend').value;
+  const other = $('labBlend').selectedOptions[0]?.textContent || '';
+  $('labMixVal').textContent = `${Math.round((1 - $('labMix').value) * 100)}% ${$('labVoice').selectedOptions[0]?.textContent || ''} · ${Math.round($('labMix').value * 100)}% ${other}`;
+  $('labCount').textContent = `${$('labText').value.length} / ${$('labText').maxLength}`;
+}
+['labMix', 'labSpeed', 'labPitch'].forEach((id) => { $(id).oninput = () => { labPaintSliders(); }; $(id).onchange = saveLabOpts; });
+['labVoice', 'labBlend'].forEach((id) => { $(id).onchange = () => { labPaintSliders(); saveLabOpts(); }; });
+$('labPitch').ondblclick = () => { $('labPitch').value = 0; labPaintSliders(); saveLabOpts(); };
+$('labSpeed').ondblclick = () => { $('labSpeed').value = 1; labPaintSliders(); saveLabOpts(); };
+
+// Board sounds you can tack on before / after the voice (air horn after a roast, drumroll before an announcement)
+let stingSig = '';
+function labPaintStings() {
+  const sig = JSON.stringify(state.sounds.map((s) => [s.id, s.name, !!s.broken]));
+  if (sig === stingSig) return; stingSig = sig;
+  for (const id of ['labBefore', 'labAfter']) {
+    const sel = $(id), keep = sel.value;
+    sel.innerHTML = '<option value="">Nothing</option>' + state.sounds.filter((s) => !s.broken && !s.long)
+      .map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    sel.value = state.sounds.some((s) => s.id === keep) ? keep : '';
+  }
+}
+
+// Engine status (one-time download), pushed live from the app
+function labPaint() {
+  if (!lab.info) return;
+  labPaintStings();
+  const e = state.voiceLab || lab.info.engine;
+  const ready = e.state === 'ready';
+  $('labEngine').hidden = ready;
+  $('labMeter').hidden = e.state !== 'downloading';
+  $('labMeterBar').style.width = Math.round((e.progress || 0) * 100) + '%';
+  $('labDownload').hidden = e.state === 'downloading';
+  $('labDownload').textContent = e.state === 'error' ? 'Try again' : 'Download voice engine';
+  $('labEngineNote').textContent = e.state === 'downloading' ? `Downloading… ${Math.round((e.progress || 0) * 100)}%` : '';
+  $('labEngineText').innerHTML = e.state === 'error' ? esc(e.error || 'Download failed')
+    : 'Voice Lab needs its AI voice engine — a one-time <b>' + (e.sizeMb || 90) + ' MB</b> download. After that it runs on your PC: no account, no limits, works offline.';
+  if (!lab.busy) {
+    $('labGo').disabled = !ready;
+    $('labGo').innerHTML = ready ? 'Generate <small>Ctrl+Enter</small>' : e.state === 'downloading' ? 'Downloading voice engine…' : 'Download the voice engine first';
+  }
+}
+$('labDownload').onclick = () => api('POST', '/api/voicelab/engine').then(refresh).catch(() => {});
+
+$('labText').oninput = labPaintSliders;
+$('labSurprise').onclick = () => {
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  $('labText').value = pick(LINES.filter((l) => l !== $('labText').value));
+  if (lab.info) {
+    $('labVoice').value = pick(lab.info.voices.filter((v) => v.id !== 'am_adam')).id;
+    $('labBlend').value = '';
+    lab.fx = pick(['none', 'none', 'hype', 'deep', 'stadium', 'robot', 'radio', 'megaphone', 'demon', 'chipmunk', 'echo', 'alien', 'ghost']);
+    labPaintFx(); saveLabOpts(); store.set('sb.lab.fx', lab.fx);
+  }
+  labPaintSliders(); $('labText').focus();
+};
+
+// While you type here, in-game hotkeys pause so letters don't fire sounds
+let typingPing = 0;
+const pauseHotkeys = (on) => _fetch('/api/capture', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-SoundBat': '1' }, body: JSON.stringify({ on }) }).catch(() => {});
+$('labText').addEventListener('focus', () => { typingPing = Date.now(); pauseHotkeys(true); });
+$('labText').addEventListener('input', () => { if (Date.now() - typingPing > 10000) { typingPing = Date.now(); pauseHotkeys(true); } });
+$('labText').addEventListener('blur', () => pauseHotkeys(false));
+$('labText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); labGenerate(); } });
+$('labGo').onclick = labGenerate;
+
+const voiceName = (id) => lab.info?.voices.find((v) => v.id === id)?.name.replace(/ \(.*\)$/, '') || id;
+const fxName = (id) => lab.info?.effects.find((e) => e.id === id)?.name || id;
+
+async function labGenerate() {
+  if (lab.busy || $('labGo').disabled) return;
+  const text = $('labText').value.trim();
+  if (!text) { showErr('Type something for the voice to say'); $('labText').focus(); return; }
+  lab.busy = true;
+  const first = !lab.takes.length;
+  $('labGo').disabled = true;
+  $('labGo').innerHTML = `<span class="labBusy"></span>${first ? 'Warming up the voice…' : 'Generating…'}`;
+  try {
+    const t = await api('POST', '/api/voicelab/generate', {
+      text, voice: $('labVoice').value, blend: $('labBlend').value || null, mix: +$('labMix').value,
+      speed: +$('labSpeed').value, semitones: +$('labPitch').value, effect: lab.fx,
+      before: $('labBefore').value || null, after: $('labAfter').value || null,
+    });
+    lab.takes.unshift(t);
+    if (lab.takes.length > 30) lab.takes.length = 30;
+    lab.fresh = t.id;
+    labRenderTakes();
+    labPreview(t.id);
+  } catch { /* api() already showed the error */ }
+  finally { lab.busy = false; labPaint(); }
+}
+
+function labRenderTakes() {
+  const box = $('labTakes');
+  if (!lab.takes.length) {
+    box.innerHTML = '<div class="takesEmpty">Your clips show up here. Preview them, play them straight into the call, or save the keepers to your board.<br>Click a take\'s text to load its settings back.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  lab.takes.forEach((t) => {
+    const d = document.createElement('div');
+    d.dataset.id = t.id;
+    d.className = 'take' + (t.id === lab.fresh ? ' fresh' : '');
+    const meta = [voiceName(t.voice) + (t.blend ? ' + ' + voiceName(t.blend) : ''), t.effect !== 'none' ? fxName(t.effect) : null,
+      t.speed !== 1 ? t.speed + '×' : null, t.semitones ? (t.semitones > 0 ? '+' : '') + t.semitones + ' pitch' : null].filter(Boolean).join(' · ');
+    d.innerHTML = `<button class="tplay${lab.playingTake === t.id ? ' on' : ''}" title="Preview here (only you hear it)">${lab.playingTake === t.id ? '&#9632;' : '&#9654;'}</button>
+      <div><div class="ttext" title="Load these settings">“${esc(t.text)}”</div><div class="tmeta">${esc(meta)}</div></div>
+      <div class="tbtns">
+        <button class="btn sm" data-a="call" title="Play it in the voice call without saving">Play in call</button>
+        ${t.savedAs ? `<span class="saved">&#10003; On your board</span>` : '<button class="btn sm solid" data-a="save">Save to board</button>'}
+        <button class="x" data-a="del" title="Throw away">&#10005;</button>
+      </div>
+      <div class="tsave" hidden><input type="text" maxlength="40" aria-label="Sound name"><select aria-label="Board"></select><button class="btn sm solid" data-a="ok">Save</button><button class="btn sm" data-a="cancel">Cancel</button></div>`;
+    d.querySelector('.tplay').onclick = () => labPreview(t.id);
+    d.querySelector('.ttext').onclick = () => labLoad(t);
+    d.querySelector('[data-a=call]').onclick = () => api('POST', '/api/voicelab/play/' + t.id).then(refresh).catch(() => {});
+    d.querySelector('[data-a=del]').onclick = () => { api('DELETE', '/api/voicelab/take/' + t.id).catch(() => {}); lab.takes = lab.takes.filter((x) => x !== t); if (lab.playingTake === t.id) labStopPreview(); labRenderTakes(); };
+    const form = d.querySelector('.tsave'), name = form.querySelector('input'), sel = form.querySelector('select');
+    const save = d.querySelector('[data-a=save]');
+    if (save) save.onclick = () => {
+      name.value = t.text.replace(/\s+/g, ' ').slice(0, 40);
+      sel.innerHTML = state.boards.map((b) => `<option>${esc(b)}</option>`).join('');
+      sel.value = currentBoard(); sel.hidden = state.boards.length < 2;
+      form.hidden = false; name.focus(); name.select();
+    };
+    const doSave = async () => {
+      try {
+        const r = await api('POST', '/api/voicelab/save/' + t.id, { name: name.value, board: sel.value });
+        t.savedAs = r.sound.id; labRenderTakes(); refresh();
+      } catch {}
+    };
+    form.querySelector('[data-a=ok]').onclick = doSave;
+    form.querySelector('[data-a=cancel]').onclick = () => { form.hidden = true; };
+    name.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); doSave(); } if (e.key === 'Escape') { e.stopPropagation(); form.hidden = true; } };
+    box.appendChild(d);
+  });
+}
+function labLoad(t) {
+  $('labText').value = t.text; $('labVoice').value = t.voice; $('labBlend').value = t.blend || '';
+  if (t.blend) $('labMix').value = t.mix;
+  $('labSpeed').value = t.speed; $('labPitch').value = t.semitones;
+  lab.fx = t.effect; labPaintFx(); labPaintSliders(); saveLabOpts(); $('labText').focus();
+}
+function labStopPreview() {
+  if (lab.audio) { lab.audio.pause(); lab.audio = null; }
+  lab.playingTake = null;
+}
+function labPreview(id) {
+  const t = lab.takes.find((x) => x.id === id); if (!t) return;
+  const again = lab.playingTake === id;
+  labStopPreview();
+  if (!again) {
+    lab.audio = new Audio(t.url);
+    lab.audio.volume = Math.min(1, state.masterVolume ?? 0.8);
+    lab.playingTake = id;
+    lab.audio.onended = () => { lab.playingTake = null; lab.audio = null; labPaintPlay(); };
+    lab.audio.play().catch(() => { lab.playingTake = null; labPaintPlay(); });
+  }
+  labPaintPlay();
+}
+// Only the play buttons change, so a half-typed sound name isn't wiped when a preview ends
+function labPaintPlay() {
+  document.querySelectorAll('#labTakes .take').forEach((d) => {
+    const on = d.dataset.id === lab.playingTake, b = d.querySelector('.tplay');
+    b.classList.toggle('on', on); b.innerHTML = on ? '&#9632;' : '&#9654;';
+  });
+}
 
 // Live updates: the app pushes changes as they happen; a slow poll covers any hiccup
 let live = null, liveOk = false;

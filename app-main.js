@@ -2,7 +2,7 @@
 // Lives in the tray when closed so in-game hotkeys keep working.
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, shell, Menu, ipcMain, clipboard, Tray, nativeImage, screen, Notification } = require('electron');
+const { app, BrowserWindow, shell, Menu, ipcMain, clipboard, Tray, nativeImage, screen, Notification, powerSaveBlocker } = require('electron');
 
 // Keep using the original data folder so sounds/settings carry over from "Soundboard"
 app.setPath('userData', path.join(app.getPath('appData'), 'Soundboard'));
@@ -10,7 +10,7 @@ app.setPath('userData', path.join(app.getPath('appData'), 'Soundboard'));
 if (!app.requestSingleInstanceLock()) { app.exit(0); return; }
 
 const ICON = path.join(__dirname, 'icon.png');
-try { app.setAppUserModelId('com.akram.soundbat'); } catch {} // lets Windows show SoundBat's notifications
+try { app.setAppUserModelId(require('./package.json').build?.appId || 'com.soundbat.app'); } catch {} // lets Windows show SoundBat's notifications
 const HIDDEN = process.argv.includes('--hidden'); // started with Windows: go straight to the tray
 
 // Small run log next to the code (helps diagnose updates): resources/app-update/last-run.log
@@ -85,8 +85,29 @@ function applyLoginItem(db) {
   try { app.setLoginItemSettings({ openAtLogin: !!db.openAtLogin, args: ['--hidden'] }); } catch (e) { runLog('login item failed', e.message); }
 }
 
+// macOS App Nap slows the timers of apps that aren't in front (e.g. while you're in a game), which
+// delays sounds and makes them stutter. Keep SoundBat awake while it's in a call.
+let awakeId = null;
+function keepAwake(on) {
+  if (process.platform !== 'darwin') return;
+  try {
+    if (on && awakeId === null) awakeId = powerSaveBlocker.start('prevent-app-suspension');
+    else if (!on && awakeId !== null) { powerSaveBlocker.stop(awakeId); awakeId = null; }
+  } catch (e) { runLog('keep awake failed', e.message); }
+}
+
+// An Intel build on an Apple Silicon Mac runs through Rosetta: everything works, just slower
+function warnIfTranslated() {
+  if (!app.runningUnderARM64Translation) return;
+  runLog('running under Rosetta/emulation, arch', process.arch);
+  if (process.platform === 'darwin' && Notification.isSupported()) {
+    new Notification({ title: 'SoundBat is running in Intel mode', body: 'For the snappiest hotkeys, rebuild it for Apple Silicon (see MAC-SETUP.txt).', icon: ICON, silent: true }).show();
+  }
+}
+
 app.whenReady().then(async () => {
-  Menu.setApplicationMenu(null);
+  // macOS routes Cmd+C/V/X/A and Cmd+Q through the app menu, so keep a minimal one there
+  Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null);
   if (!HIDDEN) createSplash();
   const started = Date.now();
 
@@ -100,6 +121,8 @@ app.whenReady().then(async () => {
   createTray();
   applyLoginItem(soundboard.settings());
   soundboard.events.on('settings', applyLoginItem);
+  soundboard.events.on('busy', keepAwake);
+  warnIfTranslated();
 
   win = new BrowserWindow({
     width: 940,
@@ -187,5 +210,6 @@ function watchForUpdates() {
 app.whenReady().then(() => setTimeout(watchForUpdates, 5000));
 
 app.on('second-instance', () => showWindow());
+app.on('activate', () => showWindow()); // macOS: clicking the Dock icon brings back a window hidden to the tray
 app.on('before-quit', () => { quitting = true; });
 app.on('window-all-closed', () => app.quit());

@@ -8,12 +8,16 @@ const http = require('http');
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 
-const CODE_VERSION = '1.2.0';
-const REPO = 'Akramaltoum/SoundBat';
+const CODE_VERSION = '1.3.1';
+// GitHub repo checked for new releases — set build.publish owner/repo in package.json
+let REPO = null;
+try { const p = require('./package.json').build.publish; if (p.owner && !/^YOUR_/.test(p.owner)) REPO = `${p.owner}/${p.repo}`; } catch { /* no package.json next to the code */ }
 
 // Bundled ffmpeg (no install scripts needed) — inside the packaged app the binary lives in app.asar.unpacked
-let FFMPEG = 'ffmpeg';
-try {
+// FFMPEG_PATH lets you point at a different build (e.g. an LGPL one — see THIRD_PARTY_NOTICES.md)
+let FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
+if (process.env.FFMPEG_PATH) process.env.PATH = path.dirname(FFMPEG) + path.delimiter + process.env.PATH;
+else try {
   FFMPEG = require('@ffmpeg-installer/ffmpeg').path.replace('app.asar' + path.sep, 'app.asar.unpacked' + path.sep).replace('app.asar/', 'app.asar.unpacked/');
   process.env.PATH = path.dirname(FFMPEG) + path.delimiter + process.env.PATH;
 } catch (e) { console.error('Bundled ffmpeg not found, falling back to system ffmpeg:', String(e.message || e)); }
@@ -25,6 +29,7 @@ const {
   AudioPlayerStatus, VoiceConnectionStatus, NoSubscriberBehavior, entersState,
 } = require('@discordjs/voice');
 const audio = require('./audio');
+const voiceLab = require('./voice');
 
 // Inside the desktop app we can use Electron extras (encrypted token, open folders)
 let electron = null;
@@ -133,6 +138,13 @@ let saveTimer = null;
 const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); };
 save();
 
+// ---------- Voice Lab (type anything → AI voice clip) ----------
+const vl = voiceLab.create({
+  dataDir: DATA_DIR, codeDir: __dirname, ffmpeg: FFMPEG,
+  soundPath: (id) => { const s = db.sounds.find((x) => x.id === id); return s ? { file: path.join(SOUND_DIR, s.file), trimStart: s.trimStart, trimEnd: s.trimEnd } : null; },
+});
+vl.events.on('change', () => changed());
+
 // ---------- sound analysis (decode once, measure loudness, cache for instant playback) ----------
 const pcmFile = (s) => path.join(CACHE_DIR, s.id + '.pcm');
 const pcmCache = new audio.PcmCache();
@@ -161,7 +173,7 @@ function analyzeSound(s) {
       console.error(`Couldn't read "${s.name}":`, e.message);
     }
     const cur = db.sounds.find((x) => x.id === s.id);
-    if (cur) { Object.assign(cur, result, { analyzed: cur.file }); saveSoon(); changed(); }
+    if (cur) { Object.assign(cur, result, { analyzed: cur.file }); saveSoon(); changed(); warmPcm(cur); }
   }).finally(() => analyzing.delete(s.id));
   return analysisQueue;
 }
@@ -169,6 +181,10 @@ function loadPcm(s) {
   return pcmCache.get(s.id + ':' + s.file, () => {
     try { return fs.readFileSync(pcmFile(s)); } catch { return null; }
   });
+}
+// Keep sounds that have a hotkey decoded in memory, so a press never waits on the disk
+function warmPcm(s) {
+  if (s && s.hotkey && !s.long && !s.broken && !needsAnalysis(s)) loadPcm(s);
 }
 
 // ---------- discord ----------
@@ -180,7 +196,20 @@ let lastActivity = Date.now();
 function setError(msg) { lastError = msg ? { msg: String(msg), id: ++errSeq } : null; changed(); }
 
 player.on('error', (e) => { console.error('Playback error:', e.message); setError('Playback error: ' + e.message); });
-player.on('stateChange', (o, n) => { if (o.status !== n.status) changed(); });
+player.on('stateChange', (o, n) => {
+  if (o.status !== n.status) changed();
+  audio.preciseTimers(n.status !== AudioPlayerStatus.Idle); // even 20 ms packet spacing only while sending
+  updateBusy();
+});
+// Tell the desktop shell while we're in a call or playing, so it can stop macOS App Nap from
+// slowing our timers (and so hotkeys) while a game has focus
+let busy = false;
+function updateBusy() {
+  const b = !!activeConnection() || mixing();
+  if (b !== busy) { busy = b; events.emit('busy', b); }
+}
+// Get the Opus encoder compiled and the mixer warm before the first hotkey press
+setImmediate(() => { try { audio.warmUp(); } catch (e) { console.error('Audio warm-up failed:', e.message); } });
 
 function ownerChannel() {
   if (!OWNER_ID) return null;
@@ -259,7 +288,7 @@ async function connectTo(channel) {
   conn.subscribe(player);
   if (!conn.__hooked) {
     conn.__hooked = true;
-    conn.on('stateChange', () => changed());
+    conn.on('stateChange', () => { changed(); updateBusy(); });
     conn.on(VoiceConnectionStatus.Disconnected, async () => {
       try {
         await Promise.race([
@@ -335,6 +364,22 @@ async function playNow(id) {
   if (needsAnalysis(s)) analyzeSound(s);
   changed();
   return { playing: id };
+}
+// Play a Voice Lab take straight into the call without saving it
+async function playTake(id) {
+  const t = vl.take(id);
+  if (!t || !fs.existsSync(t.file)) throw new Error('That take is gone — generate it again');
+  await joinOwner();
+  const track = new audio.StreamTrack({ id: 'take:' + id, loop: false, volume: () => db.masterVolume, ffmpeg: FFMPEG, file: t.file, start: 0, end: null });
+  if (mixing() && !db.overlap) mixer.clear();
+  if (!mixing() || !mixer.add(track)) {
+    mixer = new audio.Mixer({ onTrackEnd: () => changed() });
+    mixer.add(track);
+    player.play(createAudioResource(mixer, { inputType: StreamType.Opus }));
+  }
+  lastActivity = Date.now();
+  changed();
+  return { playing: 'take:' + id };
 }
 function stopAll() {
   if (mixer) { mixer.destroy(); mixer = null; }
@@ -437,7 +482,7 @@ async function checkForUpdate() {
     changed();
   } catch { /* offline — try later */ }
 }
-if (process.env.SOUNDBAT_NO_UPDATE_CHECK !== 'true') {
+if (REPO && process.env.SOUNDBAT_NO_UPDATE_CHECK !== 'true') {
   setTimeout(checkForUpdate, 8_000).unref();
   setInterval(checkForUpdate, 6 * 3600_000).unref();
 }
@@ -557,6 +602,7 @@ function buildState(remote) {
     profile: config.profile,
     update,
   };
+  if (!remote) s.voiceLab = vl.status();
   if (!remote) s.phone = { enabled: !!db.phoneRemote, port: lanPort, urls: lanServer ? lanUrls(lanPort) : [], error: lanError, key: config.remoteKey, localPort };
   if (remote) { s.needsSetup = false; delete s.ownerId; }
   return s;
@@ -670,6 +716,7 @@ app.patch('/api/sounds/:id', wrap((req) => {
     if (k && k === db.stopHotkey) db.stopHotkey = null;
     if (k && k === db.randomHotkey) db.randomHotkey = null;
     s.hotkey = k;
+    warmPcm(s);
   }
   if (color !== undefined) s.color = HEX.test(color || '') ? color : null;
   if (board !== undefined && db.boards.includes(board)) s.board = board;
@@ -689,8 +736,7 @@ app.delete('/api/sounds/:id', wrap((req) => {
   if (i < 0) throw new Error('Sound not found');
   const [s] = db.sounds.splice(i, 1);
   stopSound(s.id);
-  fs.rm(path.join(SOUND_DIR, s.file), () => {});
-  fs.rm(pcmFile(s), () => {});
+  for (const f of [path.join(SOUND_DIR, s.file), pcmFile(s)]) { try { fs.rmSync(f, { force: true }); } catch { /* in use — Windows frees it later */ } }
   pcmCache.drop(s.id + ':' + s.file);
   save(); changed();
 }));
@@ -749,7 +795,7 @@ app.delete('/api/boards/:name', wrap((req) => {
 app.post('/api/config', wrap(async (req) => {
   const token = String(req.body.token || '').trim().replace(/^Bot\s+/i, '');
   const ownerId = String(req.body.ownerId || '').trim();
-  if (ownerId && !/^\d{15,22}$/.test(ownerId)) throw new Error('User ID should be a long number like 441563277697220631');
+  if (ownerId && !/^\d{15,22}$/.test(ownerId)) throw new Error('User ID should be a long number like 123456789012345678');
   if (token) {
     if (token.split('.').length !== 3) throw new Error("That doesn't look like a bot token — copy it again from the Bot tab");
     const old = config.token;
@@ -898,6 +944,29 @@ app.post('/api/open-folder', wrap(async () => {
   if (err) throw new Error(err);
 }));
 
+// ---------- Voice Lab ----------
+app.get('/api/voicelab', (_req, res) => res.json({ engine: vl.status(), voices: vl.voices, effects: vl.effects, maxText: vl.maxText }));
+app.post('/api/voicelab/engine', wrap(() => { vl.download().catch(() => {}); return vl.status(); }));
+const takeOut = (t) => ({ id: t.id, text: t.text, voice: t.voice, blend: t.blend, mix: t.mix, speed: t.speed, semitones: t.semitones, effect: t.effect, ms: t.ms, url: `/api/voicelab/take/${t.id}.mp3` });
+app.post('/api/voicelab/generate', wrap(async (req) => takeOut(await vl.generate(req.body || {}))));
+app.get('/api/voicelab/take/:id.mp3', (req, res) => {
+  const t = vl.take(req.params.id);
+  if (!t || !fs.existsSync(t.file)) return res.status(404).end();
+  res.set('Cache-Control', 'no-store').type('audio/mpeg').sendFile(t.file);
+});
+app.post('/api/voicelab/play/:id', wrap((req) => playTake(req.params.id)));
+app.delete('/api/voicelab/take/:id', wrap((req) => { stopSound('take:' + req.params.id); vl.forget(req.params.id); }));
+app.post('/api/voicelab/save/:id', wrap(async (req) => {
+  const t = vl.take(req.params.id);
+  if (!t || !fs.existsSync(t.file)) throw new Error('That take is gone — generate it again');
+  const id = newId();
+  fs.copyFileSync(t.file, path.join(SOUND_DIR, id + '.mp3'));
+  const name = (String(req.body?.name || '').trim() || t.text).replace(/[\\/\s]+/g, ' ').trim().slice(0, 40) || 'Voice';
+  const r = await addFiles([{ filename: id + '.mp3', originalname: name + '.mp3' }], req.body?.board);
+  if (!r.added.length) throw new Error("Couldn't add that take to your board");
+  return { sound: r.added[0] };
+}));
+
 // Friendly errors (e.g. a file over 25 MB) instead of an HTML error page
 app.use((err, _req, res, _next) => {
   const msg = err?.code === 'LIMIT_FILE_SIZE' ? 'That file is too big — sounds can be up to 25 MB'
@@ -959,8 +1028,12 @@ module.exports.ready = new Promise((resolve, reject) => {
 module.exports.events = events;
 module.exports.settings = () => db;
 module.exports.stopAll = stopAll;
+module.exports.shutdown = () => vl.shutdown();
 module.exports.version = CODE_VERSION;
 
 // Measure any sounds we haven't yet (older boards, starter pack), a few at a time in the background
-setTimeout(() => db.sounds.filter(needsAnalysis).forEach(analyzeSound), 1500).unref();
+setTimeout(() => {
+  db.sounds.filter(needsAnalysis).forEach(analyzeSound);
+  db.sounds.forEach(warmPcm);
+}, 1500).unref();
 if (config.token) login().catch(() => {});

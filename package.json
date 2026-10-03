@@ -1,13 +1,14 @@
 {
   "name": "soundboard",
-  "version": "1.2.0",
-  "description": "SoundBat \u2014 neon soundboard that plays into your Discord call",
+  "version": "1.3.1",
+  "description": "SoundBat — neon soundboard that plays into your Discord call",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "node --env-file=.env index.js",
     "app": "electron .",
     "dist": "electron-builder --win portable --x64",
+    "dist:mac": "node build-mac.js",
     "test": "node --test tests/audio.test.js tests/api.test.js tests/hotkeys.test.js",
     "test:ui": "node --test tests/ui.test.js"
   },
@@ -19,8 +20,11 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "discord.js": "^14.27.0",
     "express": "^4.21.2",
+    "koffi": "^3.3.2",
     "multer": "^2.0.2",
+    "onnxruntime-web": "^1.30.0",
     "opusscript": "^0.1.1",
+    "phonemizer": "^1.2.1",
     "uiohook-napi": "^1.5.5"
   },
   "productName": "SoundBat",
@@ -37,17 +41,33 @@
       "preload.js",
       "index.js",
       "audio.js",
+      "voice.js",
+      "voice-worker.js",
+      "voices/**",
       "public/**",
       "starter/**",
       "package.json",
       "node_modules/**",
       "!node_modules/uiohook-napi/libuiohook/**",
-      "!node_modules/uiohook-napi/src/**"
+      "!node_modules/uiohook-napi/src/**",
+      "!node_modules/ffmpeg-static/**",
+      "!node_modules/onnxruntime-web/dist/*.{jsep,asyncify,jspi}.*",
+      "!node_modules/onnxruntime-web/dist/ort.{all,webgl,webgpu,jspi,wasm,bundle}*",
+      "!node_modules/onnxruntime-web/dist/ort.{js,mjs,min.js,min.mjs}",
+      "!node_modules/onnxruntime-web/dist/*.map",
+      "!node_modules/onnxruntime-node/**"
     ],
     "asarUnpack": [
       "node_modules/@ffmpeg-installer/**",
       "node_modules/uiohook-napi/**",
-      "node_modules/@snazzah/**"
+      "node_modules/koffi/**",
+      "node_modules/@koromix/**",
+      "node_modules/@snazzah/**",
+      "voice-worker.js",
+      "voices/**",
+      "node_modules/onnxruntime-web/**",
+      "node_modules/onnxruntime-common/**",
+      "node_modules/phonemizer/**"
     ],
     "npmRebuild": false,
     "win": {
@@ -95,5 +115,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/Akramaltoum/SoundBat.git"
-  }
+  },
+  "license": "UNLICENSED"
 }
